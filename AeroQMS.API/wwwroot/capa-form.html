@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New CAPA Action | AeroQMS</title>
+    <style>
+        :root {
+            --bg: #0a0f1a;
+            --bg-card: rgba(15,23,42,0.85);
+            --border: rgba(148,163,184,0.12);
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent1: #3b8bff;
+            --accent2: #7c3aed;
+            --accent3: #00d2ff;
+            --success: #10b981;
+            --warning: #f97316;
+            --danger: #ff6b35;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .header {
+            max-width: 1100px;
+            margin: 0 auto 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .back-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            backdrop-filter: blur(12px);
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            background: linear-gradient(90deg, var(--accent1), var(--accent3));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tabs-nav {
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            background: rgba(59,139,255,0.15);
+            color: var(--accent1);
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .form-input {
+            width: 100%;
+            background: rgba(15,23,42,0.6);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent1);
+            box-shadow: 0 0 0 3px rgba(59,139,255,0.1);
+        }
+        .form-input::placeholder { color: rgba(148,163,184,0.4); }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: linear-gradient(135deg, var(--accent1), var(--accent2)); color: #fff; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(59,139,255,0.3); }
+        .btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); }
+        .btn-ghost:hover { background: rgba(255,255,255,0.1); }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-blue { background: rgba(59,139,255,0.15); color: #3b8bff; }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .data-table th {
+            background: rgba(59,139,255,0.05);
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="back-btn" onclick="goBack()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to Dashboard
+        </button>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h1 class="page-title">New CAPA Action</h1>
+
+            <div class="tabs-nav">
+                <button type="button" class="tab-btn active" data-step="1" onclick="switchStep(1)">1. NCR Description</button>
+                <button type="button" class="tab-btn" data-step="2" onclick="switchStep(2)">2. Root Cause</button>
+                <button type="button" class="tab-btn" data-step="3" onclick="switchStep(3)">3. Action Plan</button>
+                <button type="button" class="tab-btn" data-step="4" onclick="switchStep(4)">4. Review & Submit</button>
+            </div>
+
+            <form id="capa-form">
+                <!-- Step 1: NCR Description -->
+                <div id="step-1">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">NCR Reference</label>
+                            <input type="text" name="ncrReference" class="form-input" placeholder="NCR-2026-0001">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">NCR Title</label>
+                            <input type="text" name="ncrTitle" class="form-input" placeholder="Enter NCR title">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">NCR Description</label>
+                        <textarea name="ncrDescription" class="form-input" rows="4" placeholder="Describe the non-conformance in detail..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Date of Occurrence</label>
+                            <input type="date" name="occurrenceDate" class="form-input" id="todayDate">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Location / Department</label>
+                            <input type="text" name="location" class="form-input" placeholder="e.g., Hangar 3, Maintenance">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Reported By (Name)</label>
+                            <input type="text" name="reportedByName" class="form-input" placeholder="John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Reported By (Email)</label>
+                            <input type="email" name="reportedByEmail" class="form-input" placeholder="john@example.com">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Attach Evidence</label>
+                        <input type="file" name="evidenceFile" class="form-input" multiple>
+                    </div>
+                </div>
+
+                <!-- Step 2: Root Cause -->
+                <div id="step-2" style="display:none;">
+                    <div class="tabs-nav" style="border-bottom:1px solid var(--border); margin-bottom:24px; padding-bottom:12px;">
+                        <button type="button" class="tab-btn active" onclick="switchRootCauseMethod('text')">Text Notes</button>
+                        <button type="button" class="tab-btn" onclick="switchRootCauseMethod('5whys')">5 Whys</button>
+                        <button type="button" class="tab-btn" onclick="switchRootCauseMethod('fishbone')">Fishbone (Ishikawa)</button>
+                        <button type="button" class="tab-btn" onclick="switchRootCauseMethod('fmea')">FMEA</button>
+                        <button type="button" class="tab-btn" onclick="switchRootCauseMethod('pareto')">Pareto Analysis</button>
+                        <button type="button" class="tab-btn" onclick="switchRootCauseMethod('scatter')">Scatter Diagram</button>
+                    </div>
+
+                    <!-- Text Notes Method -->
+                    <div id="rc-text">
+                        <div class="form-group">
+                            <label class="form-label">Root Cause Analysis</label>
+                            <textarea name="rootCause" class="form-input" rows="5" placeholder="Use 5 Whys or Fishbone method to identify root cause..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Contributing Factors</label>
+                            <textarea name="contributingFactors" class="form-input" rows="3" placeholder="List any contributing factors..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 5 Whys Method -->
+                    <div id="rc-5whys" style="display:none;">
+                        <div style="margin-bottom:24px;">
+                            <h3 style="font-size:16px; margin-bottom:16px; color:var(--text-muted);">5 Whys Analysis</h3>
+                            <div style="display:flex; flex-direction:column; gap:20px;">
+                                <div class="why-item">
+                                    <div style="display:flex; align-items:flex-start; gap:16px;">
+                                        <div class="why-number" style="width:48px; height:48px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; background:linear-gradient(135deg, #ff6b35, #f97316); color:#fff; flex-shrink:0;">1</div>
+                                        <div style="flex:1;">
+                                            <div style="font-weight:700; font-size:15px; margin-bottom:8px;">Why did it happen?</div>
+                                            <textarea class="form-input" name="why1" rows="3" placeholder="Enter the first why..."></textarea>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:center; padding:12px 0;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent1)" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+                                </div>
+
+                                <div class="why-item">
+                                    <div style="display:flex; align-items:flex-start; gap:16px;">
+                                        <div class="why-number" style="width:48px; height:48px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; background:linear-gradient(135deg, #fac500, #f97316); color:#000; flex-shrink:0;">2</div>
+                                        <div style="flex:1;">
+                                            <div style="font-weight:700; font-size:15px; margin-bottom:8px;">Why did that happen?</div>
+                                            <textarea class="form-input" name="why2" rows="3" placeholder="Enter the second why..."></textarea>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:center; padding:12px 0;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent1)" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+                                </div>
+
+                                <div class="why-item">
+                                    <div style="display:flex; align-items:flex-start; gap:16px;">
+                                        <div class="why-number" style="width:48px; height:48px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; background:linear-gradient(135deg, #3b8bff, #7c3aed); color:#fff; flex-shrink:0;">3</div>
+                                        <div style="flex:1;">
+                                            <div style="font-weight:700; font-size:15px; margin-bottom:8px;">Why did that happen?</div>
+                                            <textarea class="form-input" name="why3" rows="3" placeholder="Enter the third why..."></textarea>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:center; padding:12px 0;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent1)" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+                                </div>
+
+                                <div class="why-item">
+                                    <div style="display:flex; align-items:flex-start; gap:16px;">
+                                        <div class="why-number" style="width:48px; height:48px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; background:linear-gradient(135deg, #7c3aed, #581c87); color:#fff; flex-shrink:0;">4</div>
+                                        <div style="flex:1;">
+                                            <div style="font-weight:700; font-size:15px; margin-bottom:8px;">Why did that happen?</div>
+                                            <textarea class="form-input" name="why4" rows="3" placeholder="Enter the fourth why..."></textarea>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:center; padding:12px 0;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent1)" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+                                </div>
+
+                                <div class="why-item">
+                                    <div style="display:flex; align-items:flex-start; gap:16px;">
+                                        <div class="why-number" style="width:48px; height:48px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; background:linear-gradient(135deg, #10b981, #059669); color:#fff; flex-shrink:0;">5</div>
+                                        <div style="flex:1;">
+                                            <div style="font-weight:700; font-size:15px; margin-bottom:8px;">Why did that happen?</div>
+                                            <textarea class="form-input" name="why5" rows="3" placeholder="Enter the root cause..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fishbone (Ishikawa) Method -->
+                    <div id="rc-fishbone" style="display:none;">
+                        <div style="margin-bottom:24px;">
+                            <h3 style="font-size:16px; margin-bottom:16px; color:var(--text-muted);">Fishbone (Ishikawa) Diagram</h3>
+                            
+                            <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:24px;">
+                                <svg width="100%" height="400" viewBox="0 0 800 400" id="fishbone-svg">
+                                    <line x1="50" y1="200" x2="700" y2="200" stroke="var(--accent1)" stroke-width="4"/>
+                                    <polygon points="700,200 750,180 750,220" fill="var(--accent1)"/>
+                                    <rect x="750" y="160" width="120" height="80" rx="8" fill="rgba(255,107,53,0.2)" stroke="var(--danger)" stroke-width="2"/>
+                                    <text x="810" y="195" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="700">Problem</text>
+                                    <text x="810" y="220" text-anchor="middle" fill="var(--text-muted)" font-size="11">Statement</text>
+                                    
+                                    <line x1="200" y1="200" x2="150" y2="100" stroke="var(--accent2)" stroke-width="3"/>
+                                    <line x1="200" y1="200" x2="150" y2="300" stroke="var(--accent3)" stroke-width="3"/>
+                                    <line x1="350" y1="200" x2="300" y2="100" stroke="var(--success)" stroke-width="3"/>
+                                    <line x1="350" y1="200" x2="300" y2="300" stroke="#fac500" stroke-width="3"/>
+                                    <line x1="500" y1="200" x2="450" y2="100" stroke="var(--danger)" stroke-width="3"/>
+                                    <line x1="500" y1="200" x2="450" y2="300" stroke="var(--text-muted)" stroke-width="3"/>
+                                    
+                                    <rect x="80" y="60" width="120" height="40" rx="6" fill="rgba(124,58,237,0.2)" stroke="var(--accent2)" stroke-width="2"/>
+                                    <text x="140" y="85" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="700">Methods</text>
+                                    
+                                    <rect x="80" y="260" width="120" height="40" rx="6" fill="rgba(0,210,255,0.2)" stroke="var(--accent3)" stroke-width="2"/>
+                                    <text x="140" y="285" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="700">Environment</text>
+                                    
+                                    <rect x="230" y="60" width="120" height="40" rx="6" fill="rgba(16,185,129,0.2)" stroke="var(--success)" stroke-width="2"/>
+                                    <text x="290" y="85" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="700">Manpower</text>
+                                    
+                                    <rect x="230" y="260" width="120" height="40" rx="6" fill="rgba(250,197,0,0.2)" stroke="#fac500" stroke-width="2"/>
+                                    <text x="290" y="285" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="700">Materials</text>
+                                    
+                                    <rect x="380" y="60" width="120" height="40" rx="6" fill="rgba(255,107,53,0.2)" stroke="var(--danger)" stroke-width="2"/>
+                                    <text x="440" y="85" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="700">Machinery</text>
+                                    
+                                    <rect x="380" y="260" width="120" height="40" rx="6" fill="rgba(148,163,184,0.2)" stroke="var(--text-muted)" stroke-width="2"/>
+                                    <text x="440" y="285" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="700">Measurement</text>
+                                </svg>
+                            </div>
+                            
+                            <div style="text-align:center; margin-bottom:24px;">
+                                <input type="text" name="fishboneProblem" class="form-input" style="width:500px; text-align:center; font-size:16px; font-weight:700;" placeholder="Enter the problem statement...">
+                            </div>
+                            
+                            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+                                <div class="fishbone-category">
+                                    <div style="background:linear-gradient(135deg, rgba(124,58,237,0.15), rgba(59,139,255,0.15)); border-radius:12px; padding:16px; border:1px solid rgba(124,58,237,0.3);">
+                                        <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--accent2);">Methods</div>
+                                        <textarea name="fishboneMethods" class="form-input" rows="3" placeholder="List causes..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="fishbone-category">
+                                    <div style="background:linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.15)); border-radius:12px; padding:16px; border:1px solid rgba(16,185,129,0.3);">
+                                        <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--success);">Manpower</div>
+                                        <textarea name="fishboneManpower" class="form-input" rows="3" placeholder="List causes..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="fishbone-category">
+                                    <div style="background:linear-gradient(135deg, rgba(250,197,0,0.15), rgba(249,115,22,0.15)); border-radius:12px; padding:16px; border:1px solid rgba(250,197,0,0.3);">
+                                        <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:#fac500;">Materials</div>
+                                        <textarea name="fishboneMaterials" class="form-input" rows="3" placeholder="List causes..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="fishbone-category">
+                                    <div style="background:linear-gradient(135deg, rgba(255,107,53,0.15), rgba(249,115,22,0.15)); border-radius:12px; padding:16px; border:1px solid rgba(255,107,53,0.3);">
+                                        <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--danger);">Machinery</div>
+                                        <textarea name="fishboneMachinery" class="form-input" rows="3" placeholder="List causes..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="fishbone-category">
+                                    <div style="background:linear-gradient(135deg, rgba(0,210,255,0.15), rgba(59,139,255,0.15)); border-radius:12px; padding:16px; border:1px solid rgba(0,210,255,0.3);">
+                                        <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--accent3);">Environment</div>
+                                        <textarea name="fishboneEnvironment" class="form-input" rows="3" placeholder="List causes..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="fishbone-category">
+                                    <div style="background:linear-gradient(135deg, rgba(148,163,184,0.15), rgba(71,85,105,0.15)); border-radius:12px; padding:16px; border:1px solid rgba(148,163,184,0.3);">
+                                        <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--text-muted);">Measurement</div>
+                                        <textarea name="fishboneMeasurement" class="form-input" rows="3" placeholder="List causes..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FMEA Method -->
+                    <div id="rc-fmea" style="display:none;">
+                        <div style="margin-bottom:24px;">
+                            <h3 style="font-size:16px; margin-bottom:16px; color:var(--text-muted);">FMEA (Failure Mode and Effects Analysis)</h3>
+                            <table class="data-table" style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th style="width:20%;">Failure Mode</th>
+                                        <th style="width:25%;">Effect</th>
+                                        <th style="width:15%;">Severity (1-10)</th>
+                                        <th style="width:15%;">Occurrence (1-10)</th>
+                                        <th style="width:15%;">Detection (1-10)</th>
+                                        <th style="width:10%;">RPN</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fmea-tbody">
+                                    <tr>
+                                        <td><input type="text" class="form-input" name="fmea1_mode" placeholder="Enter failure mode..."></td>
+                                        <td><input type="text" class="form-input" name="fmea1_effect" placeholder="Enter effect..."></td>
+                                        <td><input type="number" class="form-input" name="fmea1_sev" min="1" max="10" value="5" onchange="calculateFmeaRpn(1)"></td>
+                                        <td><input type="number" class="form-input" name="fmea1_occ" min="1" max="10" value="5" onchange="calculateFmeaRpn(1)"></td>
+                                        <td><input type="number" class="form-input" name="fmea1_det" min="1" max="10" value="5" onchange="calculateFmeaRpn(1)"></td>
+                                        <td><div class="form-input" readonly style="text-align:center; font-weight:800;" id="fmea1_rpn">125</div></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" class="form-input" name="fmea2_mode" placeholder="Enter failure mode..."></td>
+                                        <td><input type="text" class="form-input" name="fmea2_effect" placeholder="Enter effect..."></td>
+                                        <td><input type="number" class="form-input" name="fmea2_sev" min="1" max="10" value="5" onchange="calculateFmeaRpn(2)"></td>
+                                        <td><input type="number" class="form-input" name="fmea2_occ" min="1" max="10" value="5" onchange="calculateFmeaRpn(2)"></td>
+                                        <td><input type="number" class="form-input" name="fmea2_det" min="1" max="10" value="5" onchange="calculateFmeaRpn(2)"></td>
+                                        <td><div class="form-input" readonly style="text-align:center; font-weight:800;" id="fmea2_rpn">125</div></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div style="margin-top:16px; text-align:right;">
+                                <button type="button" class="btn btn-ghost" onclick="addFmeaRow()">+ Add Row</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pareto Analysis Method -->
+                    <div id="rc-pareto" style="display:none;">
+                        <div style="margin-bottom:24px;">
+                            <h3 style="font-size:16px; margin-bottom:16px; color:var(--text-muted);">Pareto Analysis (80/20 Rule)</h3>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+                                <div>
+                                    <table class="data-table" style="width:100%;">
+                                        <thead>
+                                            <tr>
+                                                <th>Cause</th>
+                                                <th style="width:30%;">Count</th>
+                                                <th style="width:25%;">Cumulative %</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="pareto-tbody">
+                                            <tr>
+                                                <td><input type="text" class="form-input" name="pareto1_cause" placeholder="Enter cause..."></td>
+                                                <td><input type="number" class="form-input" name="pareto1_count" min="0" value="0" onchange="updatePareto()" oninput="updatePareto()"></td>
+                                                <td><div class="form-input" readonly style="text-align:center;" id="pareto1_pct">0%</div></td>
+                                            </tr>
+                                            <tr>
+                                                <td><input type="text" class="form-input" name="pareto2_cause" placeholder="Enter cause..."></td>
+                                                <td><input type="number" class="form-input" name="pareto2_count" min="0" value="0" onchange="updatePareto()" oninput="updatePareto()"></td>
+                                                <td><div class="form-input" readonly style="text-align:center;" id="pareto2_pct">0%</div></td>
+                                            </tr>
+                                            <tr>
+                                                <td><input type="text" class="form-input" name="pareto3_cause" placeholder="Enter cause..."></td>
+                                                <td><input type="number" class="form-input" name="pareto3_count" min="0" value="0" onchange="updatePareto()" oninput="updatePareto()"></td>
+                                                <td><div class="form-input" readonly style="text-align:center;" id="pareto3_pct">0%</div></td>
+                                            </tr>
+                                            <tr>
+                                                <td><input type="text" class="form-input" name="pareto4_cause" placeholder="Enter cause..."></td>
+                                                <td><input type="number" class="form-input" name="pareto4_count" min="0" value="0" onchange="updatePareto()" oninput="updatePareto()"></td>
+                                                <td><div class="form-input" readonly style="text-align:center;" id="pareto4_pct">0%</div></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <div style="margin-top:16px; text-align:right;">
+                                        <button type="button" class="btn btn-ghost" onclick="addParetoRow()">+ Add Cause</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:12px; padding:24px;">
+                                        <svg width="100%" height="300" viewBox="0 0 400 300" id="pareto-svg">
+                                            <line x1="60" y1="260" x2="380" y2="260" stroke="var(--border)" stroke-width="2"/>
+                                            <line x1="60" y1="40" x2="60" y2="260" stroke="var(--border)" stroke-width="2"/>
+                                            <text x="20" y="150" fill="var(--text-muted)" font-size="12" text-anchor="middle" transform="rotate(-90 20 150)">Count</text>
+                                            <text x="220" y="285" fill="var(--text-muted)" font-size="12" text-anchor="middle">Causes</text>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scatter Diagram Method -->
+                    <div id="rc-scatter" style="display:none;">
+                        <div style="margin-bottom:24px;">
+                            <h3 style="font-size:16px; margin-bottom:16px; color:var(--text-muted);">Scatter Diagram (Correlation Analysis)</h3>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+                                <div>
+                                    <div style="margin-bottom:16px;">
+                                        <label class="form-label">X-Axis Variable</label>
+                                        <input type="text" class="form-input" name="scatterXLabel" placeholder="e.g., Temperature, Pressure, Time">
+                                    </div>
+                                    <table class="data-table" style="width:100%;">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:50%;">X Value</th>
+                                                <th style="width:50%;">Y Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="scatter-tbody">
+                                            <tr>
+                                                <td><input type="number" class="form-input" name="scatter1_x" step="0.1" value="0" onchange="updateScatterDiagram()" oninput="updateScatterDiagram()"></td>
+                                                <td><input type="number" class="form-input" name="scatter1_y" step="0.1" value="0" onchange="updateScatterDiagram()" oninput="updateScatterDiagram()"></td>
+                                            </tr>
+                                            <tr>
+                                                <td><input type="number" class="form-input" name="scatter2_x" step="0.1" value="0" onchange="updateScatterDiagram()" oninput="updateScatterDiagram()"></td>
+                                                <td><input type="number" class="form-input" name="scatter2_y" step="0.1" value="0" onchange="updateScatterDiagram()" oninput="updateScatterDiagram()"></td>
+                                            </tr>
+                                            <tr>
+                                                <td><input type="number" class="form-input" name="scatter3_x" step="0.1" value="0" onchange="updateScatterDiagram()" oninput="updateScatterDiagram()"></td>
+                                                <td><input type="number" class="form-input" name="scatter3_y" step="0.1" value="0" onchange="updateScatterDiagram()" oninput="updateScatterDiagram()"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <div style="margin-top:16px; text-align:right;">
+                                        <button type="button" class="btn btn-ghost" onclick="addScatterRow()">+ Add Data Point</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="margin-bottom:16px;">
+                                        <label class="form-label">Y-Axis Variable</label>
+                                        <input type="text" class="form-input" name="scatterYLabel" placeholder="e.g., Defect Rate, Quality Score">
+                                    </div>
+                                    <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:12px; padding:24px; aspect-ratio:1/1; position:relative;">
+                                        <div style="position:absolute; top:10px; left:50%; transform:translateX(-50%); font-weight:700; color:var(--text-muted);">Y</div>
+                                        <div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-weight:700; color:var(--text-muted);">X</div>
+                                        <svg width="100%" height="100%" viewBox="0 0 300 300" id="scatter-svg">
+                                            <line x1="40" y1="260" x2="280" y2="260" stroke="var(--border)" stroke-width="2"/>
+                                            <line x1="40" y1="40" x2="40" y2="260" stroke="var(--border)" stroke-width="2"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Action Plan -->
+                <div id="step-3" style="display:none;">
+                    <div class="form-group">
+                        <label class="form-label">Action Title</label>
+                        <input type="text" name="title" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Action Type</label>
+                        <select name="actionType" class="form-input">
+                            <option value="corrective">Corrective (Fix the issue)</option>
+                            <option value="preventive">Preventive (Prevent recurrence)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Action Description</label>
+                        <textarea name="description" class="form-input" rows="3" required placeholder="Describe the corrective/preventive action..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Responsible Person ID</label>
+                            <input type="number" name="responsiblePersonId" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Responsible Name</label>
+                            <input type="text" name="responsiblePersonName" class="form-input">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Responsible Email</label>
+                        <input type="email" name="responsiblePersonEmail" class="form-input">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Due Date</label>
+                            <input type="date" name="dueDate" class="form-input" required id="dueDateInput">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Priority</label>
+                            <select name="priority" class="form-input">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Initial Status</label>
+                        <select name="status" class="form-input">
+                            <option value="not_started">Not Started</option>
+                            <option value="in_progress">In Progress</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Step 4: Review & Submit -->
+                <div id="step-4" style="display:none;">
+                    <div class="info-grid">
+                        <div class="info-item" style="grid-column:span 2;">
+                            <span class="info-label">Review all information before submitting</span>
+                            <span class="info-value" style="color: var(--text-muted); font-size: 13px;">Please verify that all details are correct.</span>
+                        </div>
+                    </div>
+                    <div id="review-summary" style="padding: 20px; background: rgba(255,255,255,0.02); border-radius: 8px; border:1px solid var(--border); margin-top: 16px;">
+                        <p style="color: var(--text-muted); text-align: center;">Complete previous steps to see the summary here.</p>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button type="button" class="btn btn-ghost" id="prev-btn" style="display:none;" onclick="switchStep(currentStep - 1)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                        Previous
+                    </button>
+                    <button type="button" class="btn btn-primary" id="next-btn" onclick="switchStep(currentStep + 1)">
+                        Next
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5149/api';
+        let currentStep = 1;
+        let currentRootCauseMethod = 'text';
+        let fmeaRowCount = 2;
+        let paretoRowCount = 4;
+        let scatterRowCount = 3;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('todayDate').value = today;
+            const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            document.getElementById('dueDateInput').value = in30Days;
+        });
+
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+
+        function switchRootCauseMethod(method) {
+            currentRootCauseMethod = method;
+            
+            document.querySelectorAll('#step-2 .tabs-nav .tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            const methods = ['text', '5whys', 'fishbone', 'fmea', 'pareto', 'scatter'];
+            methods.forEach(m => {
+                const div = document.getElementById(`rc-${m}`);
+                if (div) {
+                    div.style.display = m === method ? 'block' : 'none';
+                }
+            });
+        }
+
+        function calculateFmeaRpn(rowNum) {
+            const sevInput = document.querySelector(`[name="fmea${rowNum}_sev"]`);
+            const occInput = document.querySelector(`[name="fmea${rowNum}_occ"]`);
+            const detInput = document.querySelector(`[name="fmea${rowNum}_det"]`);
+            const rpnDiv = document.getElementById(`fmea${rowNum}_rpn`);
+            
+            const sev = parseInt(sevInput?.value) || 1;
+            const occ = parseInt(occInput?.value) || 1;
+            const det = parseInt(detInput?.value) || 1;
+            
+            const rpn = sev * occ * det;
+            if (rpnDiv) {
+                rpnDiv.textContent = rpn;
+            }
+        }
+
+        function addFmeaRow() {
+            fmeaRowCount++;
+            const tbody = document.getElementById('fmea-tbody');
+            if (tbody) {
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `
+                    <td><input type="text" class="form-input" name="fmea${fmeaRowCount}_mode" placeholder="Enter failure mode..."></td>
+                    <td><input type="text" class="form-input" name="fmea${fmeaRowCount}_effect" placeholder="Enter effect..."></td>
+                    <td><input type="number" class="form-input" name="fmea${fmeaRowCount}_sev" min="1" max="10" value="5" onchange="calculateFmeaRpn(${fmeaRowCount})"></td>
+                    <td><input type="number" class="form-input" name="fmea${fmeaRowCount}_occ" min="1" max="10" value="5" onchange="calculateFmeaRpn(${fmeaRowCount})"></td>
+                    <td><input type="number" class="form-input" name="fmea${fmeaRowCount}_det" min="1" max="10" value="5" onchange="calculateFmeaRpn(${fmeaRowCount})"></td>
+                    <td><div class="form-input" readonly style="text-align:center; font-weight:800;" id="fmea${fmeaRowCount}_rpn">125</div></td>
+                `;
+                tbody.appendChild(newRow);
+            }
+        }
+
+        function updatePareto() {
+            let totalCount = 0;
+            const counts = [];
+            const causes = [];
+            
+            for (let i = 1; i <= paretoRowCount; i++) {
+                const countInput = document.querySelector(`[name="pareto${i}_count"]`);
+                const causeInput = document.querySelector(`[name="pareto${i}_cause"]`);
+                const count = parseInt(countInput?.value) || 0;
+                const cause = causeInput?.value || `Cause ${i}`;
+                counts.push(count);
+                causes.push(cause);
+                totalCount += count;
+            }
+            
+            let cumulativeCount = 0;
+            for (let i = 1; i <= paretoRowCount; i++) {
+                const pctDiv = document.getElementById(`pareto${i}_pct`);
+                if (pctDiv && totalCount > 0) {
+                    cumulativeCount += counts[i - 1];
+                    const pct = Math.round((cumulativeCount / totalCount) * 100);
+                    pctDiv.textContent = `${pct}%`;
+                }
+            }
+            
+            const svg = document.getElementById('pareto-svg');
+            if (svg) {
+                const maxCount = Math.max(...counts, 1);
+                const barWidth = Math.max(30, (320 / paretoRowCount) - 10);
+                const startX = 60;
+                const chartWidth = 320;
+                const chartHeight = 220;
+                const bottomY = 260;
+                
+                let bars = '';
+                let linePoints = '';
+                let cumulativePct = 0;
+                
+                for (let i = 0; i < paretoRowCount; i++) {
+                    const x = startX + 10 + i * (barWidth + 10);
+                    const height = (counts[i] / maxCount) * chartHeight;
+                    const y = bottomY - height;
+                    
+                    bars += `<rect x="${x}" y="${y}" width="${barWidth}" height="${height}" fill="var(--accent1)" opacity="0.7"/>`;
+                    
+                    if (totalCount > 0) {
+                        cumulativePct += counts[i];
+                        const pct = cumulativePct / totalCount;
+                        const lineX = x + barWidth / 2;
+                        const lineY = bottomY - pct * chartHeight;
+                        linePoints += (i === 0 ? 'M' : 'L') + `${lineX},${lineY} `;
+                    }
+                }
+                
+                svg.innerHTML = `
+                    <line x1="60" y1="260" x2="380" y2="260" stroke="var(--border)" stroke-width="2"/>
+                    <line x1="60" y1="40" x2="60" y2="260" stroke="var(--border)" stroke-width="2"/>
+                    <text x="20" y="150" fill="var(--text-muted)" font-size="12" text-anchor="middle" transform="rotate(-90 20 150)">Count</text>
+                    <text x="220" y="285" fill="var(--text-muted)" font-size="12" text-anchor="middle">Causes</text>
+                    ${bars}
+                    ${linePoints ? `<path d="${linePoints}" fill="none" stroke="var(--accent2)" stroke-width="3"/>` : ''}
+                `;
+            }
+        }
+
+        function addParetoRow() {
+            paretoRowCount++;
+            const tbody = document.getElementById('pareto-tbody');
+            if (tbody) {
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `
+                    <td><input type="text" class="form-input" name="pareto${paretoRowCount}_cause" placeholder="Enter cause..."></td>
+                    <td><input type="number" class="form-input" name="pareto${paretoRowCount}_count" min="0" value="0" onchange="updatePareto()" oninput="updatePareto()"></td>
+                    <td><div class="form-input" readonly style="text-align:center;" id="pareto${paretoRowCount}_pct">0%</div></td>
+                `;
+                tbody.appendChild(newRow);
+            }
+            updatePareto();
+        }
+
+        function addScatterRow() {
+            scatterRowCount++;
+            const tbody = document.getElementById('scatter-tbody');
+            if (tbody) {
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `
+                    <td><input type="number" class="form-input" name="scatter${scatterRowCount}_x" step="0.1" value="0" onchange="updateScatterDiagram()" oninput="updateScatterDiagram()"></td>
+                    <td><input type="number" class="form-input" name="scatter${scatterRowCount}_y" step="0.1" value="0" onchange="updateScatterDiagram()" oninput="updateScatterDiagram()"></td>
+                `;
+                tbody.appendChild(newRow);
+            }
+            updateScatterDiagram();
+        }
+
+        function updateScatterDiagram() {
+            const svg = document.getElementById('scatter-svg');
+            if (!svg) return;
+
+            const dataPoints = [];
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+
+            for (let i = 1; i <= scatterRowCount; i++) {
+                const xInput = document.querySelector(`[name="scatter${i}_x"]`);
+                const yInput = document.querySelector(`[name="scatter${i}_y"]`);
+                const x = parseFloat(xInput?.value) || 0;
+                const y = parseFloat(yInput?.value) || 0;
+                dataPoints.push({ x, y });
+                
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+
+            if (minX === maxX) { minX -= 1; maxX += 1; }
+            if (minY === maxY) { minY -= 1; maxY += 1; }
+
+            const rangeX = maxX - minX;
+            const rangeY = maxY - minY;
+
+            svg.innerHTML = `
+                <line x1="40" y1="260" x2="280" y2="260" stroke="var(--border)" stroke-width="2"/>
+                <line x1="40" y1="40" x2="40" y2="260" stroke="var(--border)" stroke-width="2"/>
+                ${dataPoints.map((p, i) => {
+                    const x = 40 + ((p.x - minX) / rangeX) * 220;
+                    const y = 260 - ((p.y - minY) / rangeY) * 200;
+                    return `<circle cx="${x}" cy="${y}" r="6" fill="var(--accent1)" opacity="0.8"/>`;
+                }).join('')}
+            `;
+        }
+
+        function switchStep(step) {
+            if (step < 1 || step > 4) return;
+            
+            currentStep = step;
+            
+            document.querySelectorAll('.tabs-nav .tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (parseInt(btn.dataset.step) === step) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            for (let i = 1; i <= 4; i++) {
+                const stepDiv = document.getElementById(`step-${i}`);
+                if (stepDiv) {
+                    stepDiv.style.display = i === step ? 'block' : 'none';
+                }
+            }
+            
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const title = document.querySelector('.page-title');
+            
+            if (prevBtn) prevBtn.style.display = step > 1 ? 'inline-flex' : 'none';
+            if (nextBtn) {
+                if (step === 4) {
+                    nextBtn.textContent = 'Submit CAPA';
+                    nextBtn.innerHTML = 'Submit CAPA';
+                    nextBtn.onclick = submitCapa;
+                } else {
+                    nextBtn.innerHTML = `Next <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>`;
+                    nextBtn.onclick = () => switchStep(step + 1);
+                }
+            }
+            
+            if (title) title.textContent = `New CAPA Action - Step ${step}/4`;
+            
+            if (step === 4) {
+                updateReview();
+            }
+        }
+
+        function updateReview() {
+            const form = document.getElementById('capa-form');
+            const formData = new FormData(form);
+            const reviewDiv = document.getElementById('review-summary');
+            
+            reviewDiv.innerHTML = `
+                <div class="info-grid">
+                    <div class="info-item"><span class="info-label">NCR Reference</span><span class="info-value">${formData.get('ncrReference') || '-'}</span></div>
+                    <div class="info-item"><span class="info-label">NCR Title</span><span class="info-value">${formData.get('ncrTitle') || '-'}</span></div>
+                    <div class="info-item" style="grid-column:span 2;"><span class="info-label">NCR Description</span><span class="info-value">${formData.get('ncrDescription') || '-'}</span></div>
+                    <div class="info-item"><span class="info-label">Occurrence Date</span><span class="info-value">${formData.get('occurrenceDate') || '-'}</span></div>
+                    <div class="info-item"><span class="info-label">Location</span><span class="info-value">${formData.get('location') || '-'}</span></div>
+                    <div class="info-item"><span class="info-label">Reported By</span><span class="info-value">${formData.get('reportedByName') || '-'}</span></div>
+                    <div class="info-item" style="grid-column:span 2;"><span class="info-label">Root Cause</span><span class="info-value">${formData.get('rootCause') || '-'}</span></div>
+                    <div class="info-item" style="grid-column:span 2;"><span class="info-label">Contributing Factors</span><span class="info-value">${formData.get('contributingFactors') || '-'}</span></div>
+                    <div class="info-item" style="grid-column:span 2;"><span class="info-label">Action Title</span><span class="info-value">${formData.get('title') || '-'}</span></div>
+                    <div class="info-item"><span class="info-label">Action Type</span><span class="badge badge-blue">${formData.get('actionType') || '-'}</span></div>
+                    <div class="info-item"><span class="info-label">Priority</span><span class="info-value">${formData.get('priority') || '-'}</span></div>
+                    <div class="info-item"><span class="info-label">Responsible</span><span class="info-value">${formData.get('responsiblePersonName') || '-'}</span></div>
+                    <div class="info-item"><span class="info-label">Due Date</span><span class="info-value">${formData.get('dueDate') || '-'}</span></div>
+                </div>
+            `;
+        }
+
+        async function submitCapa() {
+            const form = document.getElementById('capa-form');
+            const formData = new FormData(form);
+            
+            const capaData = {
+                Id: crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-0000-0000-000000000000',
+                Title: formData.get('title'),
+                title: formData.get('title'),
+                ActionType: formData.get('actionType'),
+                actionType: formData.get('actionType'),
+                Action: formData.get('title'),
+                action: formData.get('title'),
+                Description: formData.get('description'),
+                description: formData.get('description'),
+                ResponsiblePersonId: parseInt(formData.get('responsiblePersonId')) || 0,
+                responsiblePersonId: parseInt(formData.get('responsiblePersonId')) || 0,
+                ResponsiblePersonName: formData.get('responsiblePersonName') || '',
+                responsiblePersonName: formData.get('responsiblePersonName') || '',
+                ResponsiblePersonEmail: formData.get('responsiblePersonEmail') || '',
+                responsiblePersonEmail: formData.get('responsiblePersonEmail') || '',
+                DueDate: formData.get('dueDate') ? new Date(formData.get('dueDate')).toISOString() : new Date().toISOString(),
+                dueDate: formData.get('dueDate') ? new Date(formData.get('dueDate')).toISOString() : new Date().toISOString(),
+                Priority: formData.get('priority') || 'medium',
+                priority: formData.get('priority') || 'medium',
+                Status: formData.get('status') || 'not_started',
+                status: formData.get('status') || 'not_started',
+                NCRId: null,
+                ncrId: null,
+                CreatedAt: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                UpdatedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                AssignedDate: new Date().toISOString(),
+                assignedDate: new Date().toISOString(),
+                NCRReference: formData.get('ncrReference'),
+                ncrReference: formData.get('ncrReference'),
+                NCRTitle: formData.get('ncrTitle'),
+                ncrTitle: formData.get('ncrTitle'),
+                NCRDescription: formData.get('ncrDescription'),
+                ncrDescription: formData.get('ncrDescription'),
+                OccurrenceDate: formData.get('occurrenceDate') ? new Date(formData.get('occurrenceDate')).toISOString() : null,
+                occurrenceDate: formData.get('occurrenceDate') ? new Date(formData.get('occurrenceDate')).toISOString() : null,
+                Location: formData.get('location'),
+                location: formData.get('location'),
+                ReportedByName: formData.get('reportedByName'),
+                reportedByName: formData.get('reportedByName'),
+                ReportedByEmail: formData.get('reportedByEmail'),
+                reportedByEmail: formData.get('reportedByEmail'),
+                RootCause: formData.get('rootCause'),
+                rootCause: formData.get('rootCause'),
+                ContributingFactors: formData.get('contributingFactors'),
+                contributingFactors: formData.get('contributingFactors')
+            };
+
+            console.log('Sending CAPA data:', capaData);
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/capa`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(capaData)
+                });
+
+                console.log('Response status:', res.status);
+
+                if (res.ok) {
+                    alert('CAPA Action created successfully!');
+                    window.location.href = 'index.html';
+                } else {
+                    const errText = await res.text();
+                    console.error('Error response:', errText);
+                    alert('Error creating CAPA: ' + errText);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Connection error: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
