@@ -109,6 +109,17 @@ namespace AeroQMS.API.Models
         public DateTime AccessedAt { get; set; } = DateTime.UtcNow;
     }
 
+    public class DocumentRelationship
+    {
+        public Guid Id { get; set; }
+        public int SourceDocumentId { get; set; }
+        public int? TargetDocumentId { get; set; }
+        public int? TargetNcrId { get; set; }
+        public Guid? TargetCapaId { get; set; }
+        public string RelationshipType { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+
     public class NonConformance
     {
         public int Id { get; set; }

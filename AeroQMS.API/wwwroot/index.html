@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
   <style>
     :root {
       --navy-dark: #0a1628;
@@ -1066,6 +1067,145 @@
       }
     }
 
+    .relationship-map-page {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 60px);
+    }
+    .map-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 24px;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .map-controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .map-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #0f172a;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin: 18px;
+    }
+    #relationship-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .mini-map {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 200px;
+      height: 150px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    #mini-canvas { width: 100%; height: 100%; display:block; }
+    .mini-viewport {
+      position: absolute;
+      top: 0;
+      left: 0;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 4px;
+      width: 60px;
+      height: 45px;
+      pointer-events: none;
+    }
+    .map-legend {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      margin-bottom: 6px;
+      color: rgba(238,242,247,0.92);
+    }
+    .legend-item:last-child { margin-bottom: 0; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-approved { background: #10b981; }
+    .dot-review { background: #f59e0b; }
+    .dot-expired { background: #ef4444; }
+    .legend-line { width: 20px; height: 2px; border-radius: 2px; }
+    .line-references { background: #3b82f6; }
+    .line-supersedes { background: #8b5cf6; }
+    .line-ncr { background: #f97316; }
+    .map-side-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 100%;
+      background: #1f2937;
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      overflow-y: auto;
+      padding: 20px;
+      z-index: 10;
+    }
+    .panel-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      font-size: 22px;
+      color: rgba(238,242,247,0.75);
+      cursor: pointer;
+    }
+    .panel-doc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .map-side-panel h3 { margin: 0 0 14px; font-size: 16px; }
+    .panel-meta { display: grid; gap: 8px; margin-bottom: 14px; }
+    .meta-row { display:flex; justify-content: space-between; gap: 12px; font-size: 12px; color: rgba(238,242,247,0.85); }
+    .meta-row label { color: var(--text-muted); }
+    .rel-section { margin-top: 12px; }
+    .rel-section label { display:block; margin-bottom: 6px; color: var(--text-muted); font-size: 12px; font-weight: 700; }
+    .rel-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.03);
+      cursor: pointer;
+    }
+    .rel-item + .rel-item { margin-top: 8px; }
+    .rel-doc-number { font-weight: 800; }
+    .rel-doc-title { color: rgba(238,242,247,0.75); overflow:hidden; white-space:nowrap; text-overflow: ellipsis; }
+    .panel-actions { display:flex; gap: 10px; margin-top: 16px; }
+    .panel-actions .btn { flex: 1; justify-content:center; }
+
+    @media (max-width: 760px) {
+      .map-header { padding: 14px 14px; }
+      .map-container { margin: 12px; }
+      .map-side-panel { width: 280px; }
+    }
+
     .activity-history { align-items: center; }
     .activity-icon {
       width: 32px; height: 32px;
@@ -1559,6 +1699,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
         Document Control
       </div>
+      <div class="nav-item" onclick="showPage('relationship-map', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 6h8M6 8v8M18 8v8M8 18h8"/></svg>
+        Relationship Map
+      </div>
       
       <div class="nav-group">
         <div class="nav-item" onclick="toggleNavGroup(this, 'ncr')">
@@ -1785,6 +1929,47 @@
                 <!-- Dynamic Content -->
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-relationship-map">
+        <div class="relationship-map-page">
+          <div class="map-header">
+            <h1 style="font-size:18px;">Document Relationship Map</h1>
+            <div class="map-controls">
+              <button type="button" class="btn btn-ghost" onclick="resetView()">Reset View</button>
+              <button type="button" class="btn btn-ghost" onclick="toggleLabels()">Toggle Labels</button>
+              <select id="filter-category" class="form-input" style="height:32px;padding:4px 8px;font-size:12px;">
+                <option value="all">All Categories</option>
+              </select>
+              <select id="depth-selector" class="form-input" style="height:32px;padding:4px 8px;font-size:12px;">
+                <option value="1">1st Level Relations</option>
+                <option value="2">2nd Level Relations</option>
+                <option value="all" selected>All Relations</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="map-container">
+            <div id="relationship-canvas"></div>
+            <div class="mini-map">
+              <div id="mini-canvas"></div>
+              <div class="mini-viewport" id="mini-viewport"></div>
+            </div>
+            <div class="map-legend">
+              <div class="legend-item"><div class="legend-dot dot-approved"></div><span>Approved</span></div>
+              <div class="legend-item"><div class="legend-dot dot-review"></div><span>Due for Review</span></div>
+              <div class="legend-item"><div class="legend-dot dot-expired"></div><span>Expired</span></div>
+              <div class="legend-item"><div class="legend-line line-references"></div><span>References</span></div>
+              <div class="legend-item"><div class="legend-line line-supersedes"></div><span>Supersedes</span></div>
+              <div class="legend-item"><div class="legend-line line-ncr"></div><span>Linked to NCR/CAPA</span></div>
+            </div>
+
+            <div class="map-side-panel" id="side-panel" style="display:none;">
+              <div class="panel-close" onclick="closePanel()">×</div>
+              <div id="side-panel-content"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -2490,7 +2675,7 @@
 
 <script>
 const API_BASE_URL = '/api';
-const pageTitles = { dashboard:'Dashboard', audits:'Audit Management', documents:'Document Control', ncr:'Non-Conformance Reports', capa:'CAPA Management', checklists:'Checklists', training:'Training Records', risk:'Risk Management', suppliers:'Supplier Management', settings:'Settings', users:'Users', 'my-actions':'My Actions', 'my-reviews':'My Review Tasks', 'my-documents':'My Documents', 'mobile-doc':'Document', 'capa-analytics':'CAPA Analytics' };
+const pageTitles = { dashboard:'Dashboard', audits:'Audit Management', documents:'Document Control', 'relationship-map':'Document Relationship Map', ncr:'Non-Conformance Reports', capa:'CAPA Management', checklists:'Checklists', training:'Training Records', risk:'Risk Management', suppliers:'Supplier Management', settings:'Settings', users:'Users', 'my-actions':'My Actions', 'my-reviews':'My Review Tasks', 'my-documents':'My Documents', 'mobile-doc':'Document', 'capa-analytics':'CAPA Analytics' };
 
 const originalFetch = window.fetch.bind(window);
 let __redirectingToLogin = false;
@@ -2673,6 +2858,8 @@ async function showPage(id, btn) {
   const currentPath = window.location.pathname || '/';
   if (id === 'users') {
     if (currentPath !== '/settings/users') history.pushState({}, '', '/settings/users');
+  } else if (id === 'relationship-map') {
+    if (currentPath !== '/documents/relationship-map') history.pushState({}, '', '/documents/relationship-map');
   } else if (id === 'my-reviews') {
     if (currentPath !== '/my-reviews') history.pushState({}, '', '/my-reviews');
   } else if (id === 'my-documents') {
@@ -2687,6 +2874,8 @@ async function showPage(id, btn) {
   } else if (currentPath === '/my-documents') {
     history.pushState({}, '', '/');
   } else if (currentPath.startsWith('/d/')) {
+    history.pushState({}, '', '/');
+  } else if (currentPath === '/documents/relationship-map') {
     history.pushState({}, '', '/');
   }
   
@@ -2707,6 +2896,7 @@ async function showPage(id, btn) {
     case 'dashboard': await loadCapaDashboard(); break;
     case 'audits': await fetchAudits(); break;
     case 'documents': await fetchDocuments(); break;
+    case 'relationship-map': await initRelationshipMap(); break;
     case 'ncr': await fetchNcrs(); break;
     case 'training': await fetchTraining(); break;
     case 'risk': await fetchRisks(); break;
@@ -2726,6 +2916,7 @@ async function showPage(id, btn) {
 function routeToInitialPage() {
   const path = window.location.pathname || '/';
   if (path === '/settings/users') return 'users';
+  if (path === '/documents/relationship-map') return 'relationship-map';
   if (path === '/my-reviews') return 'my-reviews';
   if (path === '/my-documents') return 'my-documents';
   const dMatch = path.match(/^\/d\/(\d+)(?:\/)?$/);
@@ -2735,6 +2926,594 @@ function routeToInitialPage() {
   }
   return 'dashboard';
 }
+
+function getRelationshipMapNodeKind(nodeId) {
+  const id = String(nodeId || '');
+  if (id.startsWith('doc-')) return 'doc';
+  if (id.startsWith('ncr-')) return 'ncr';
+  if (id.startsWith('capa-')) return 'capa';
+  return 'unknown';
+}
+
+function relationshipMapStatusKey(status) {
+  return String(status || '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function getRelationshipMapNodeFill(status) {
+  const s = relationshipMapStatusKey(status);
+  if (s === 'approved' || s === 'valid' || s === 'complete' || s === 'closed' || s === 'completed' || s === 'verified') return '#10b981';
+  if (s === 'due_for_review' || s === 'expiring' || s === 'under_review' || s === 'investigation' || s === 'open' || s === 'pending_verification' || s === 'in_progress') return '#f59e0b';
+  if (s === 'expired' || s === 'overdue' || s === 'rejected' || s === 'suspended') return '#ef4444';
+  return '#6b7280';
+}
+
+function getRelationshipMapLinkColor(type) {
+  const t = String(type || '').trim().toLowerCase().replace(/\s+/g, '_');
+  if (t === 'references') return '#3b82f6';
+  if (t === 'supersedes') return '#8b5cf6';
+  if (t === 'ncr') return '#f97316';
+  return '#94a3b8';
+}
+
+function getRelationshipMapNodeStroke(node) {
+  const kind = getRelationshipMapNodeKind(node?.id);
+  if (kind === 'doc') return 'rgba(255,255,255,0.35)';
+  if (kind === 'ncr') return 'rgba(249,115,22,0.9)';
+  if (kind === 'capa') return 'rgba(249,115,22,0.9)';
+  return 'rgba(255,255,255,0.25)';
+}
+
+function relationshipMapNodeRadius(node, degreeById) {
+  const deg = degreeById.get(node.id) || 0;
+  return Math.max(18, Math.min(40, 18 + deg * 2.6));
+}
+
+function closePanel() {
+  const panel = document.getElementById('side-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+function resetView() {
+  const s = window.__relationshipMap;
+  if (!s?.svg || !s?.zoom) return;
+  const t = window.d3 ? d3.zoomIdentity : null;
+  if (!t) return;
+  s.svg.transition().duration(650).call(s.zoom.transform, t);
+  if (typeof s.clearHighlight === 'function') s.clearHighlight();
+}
+
+function toggleLabels() {
+  const s = window.__relationshipMap;
+  if (!s) return;
+  s.labelsVisible = !s.labelsVisible;
+  if (s.labelSel) s.labelSel.style('display', s.labelsVisible ? null : 'none');
+}
+
+async function initRelationshipMap() {
+  const host = document.getElementById('relationship-canvas');
+  const mapContainer = document.querySelector('#page-relationship-map .map-container');
+  if (!host || !mapContainer || !window.d3) return;
+
+  if (window.__relationshipMap?.destroy) {
+    window.__relationshipMap.destroy();
+  }
+
+  host.innerHTML = '';
+  const miniHost = document.getElementById('mini-canvas');
+  if (miniHost) miniHost.innerHTML = '';
+
+  const state = {
+    svg: null,
+    zoom: null,
+    g: null,
+    simulation: null,
+    rawNodes: [],
+    rawLinks: [],
+    filteredNodes: [],
+    filteredLinks: [],
+    nodesById: new Map(),
+    labelsVisible: true,
+    selectedCategory: 'all',
+    selectedDepth: 'all',
+    focusNodeId: null,
+    nodeSel: null,
+    linkSel: null,
+    labelSel: null,
+    mini: {
+      svg: null,
+      width: 200,
+      height: 150,
+      nodeSel: null,
+      linkSel: null,
+      pending: false
+    },
+    destroy() {
+      try { this.simulation?.stop(); } catch {}
+      try { this.svg?.on('.zoom', null); } catch {}
+      host.innerHTML = '';
+      if (miniHost) miniHost.innerHTML = '';
+      window.__relationshipMap = null;
+    },
+    clearHighlight() {
+      if (this.nodeSel) this.nodeSel.select('circle').attr('opacity', 1);
+      if (this.linkSel) this.linkSel.attr('opacity', 1);
+    }
+  };
+  window.__relationshipMap = state;
+
+  const categoryEl = document.getElementById('filter-category');
+  const depthEl = document.getElementById('depth-selector');
+  state.selectedCategory = String(categoryEl?.value || 'all');
+  state.selectedDepth = String(depthEl?.value || 'all');
+
+  categoryEl && (categoryEl.onchange = () => {
+    state.selectedCategory = String(categoryEl.value || 'all');
+    state.applyFiltersAndRender();
+  });
+  depthEl && (depthEl.onchange = () => {
+    state.selectedDepth = String(depthEl.value || 'all');
+    state.applyFiltersAndRender();
+  });
+
+  const res = await fetch(`${API_BASE_URL}/documents/relationships`, { cache: 'no-store' });
+  const data = await res.json().catch(() => null);
+  const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
+  const links = Array.isArray(data?.links) ? data.links : [];
+  state.rawNodes = nodes;
+  state.rawLinks = links;
+
+  const categories = Array.from(new Set(nodes.map(n => (getRelationshipMapNodeKind(n?.id) === 'doc' ? (n?.category || '') : '')).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b)));
+  if (categoryEl) {
+    const current = String(categoryEl.value || 'all');
+    categoryEl.innerHTML = `<option value="all">All Categories</option>` + categories.map(c => `<option value="${escapeHtml(String(c))}">${escapeHtml(String(c))}</option>`).join('');
+    categoryEl.value = categories.includes(current) ? current : 'all';
+    state.selectedCategory = categoryEl.value;
+  }
+
+  state.applyFiltersAndRender = () => {
+    const selectedCategory = String(state.selectedCategory || 'all');
+    const selectedDepth = String(state.selectedDepth || 'all');
+
+    const seededDocIds = new Set();
+    for (const n of state.rawNodes) {
+      if (getRelationshipMapNodeKind(n?.id) !== 'doc') continue;
+      if (selectedCategory === 'all' || String(n?.category || '') === selectedCategory) {
+        seededDocIds.add(String(n.id));
+      }
+    }
+
+    let includedNodeIds = new Set(seededDocIds);
+    for (const l of state.rawLinks) {
+      const sId = String(l?.source || '');
+      const tId = String(l?.target || '');
+      if (!sId || !tId) continue;
+      if (includedNodeIds.has(sId) || includedNodeIds.has(tId)) {
+        includedNodeIds.add(sId);
+        includedNodeIds.add(tId);
+      }
+    }
+
+    if (state.focusNodeId && !includedNodeIds.has(state.focusNodeId)) {
+      state.focusNodeId = null;
+      closePanel();
+    }
+
+    let depthNodeIds = includedNodeIds;
+    if (state.focusNodeId && selectedDepth !== 'all') {
+      const depth = selectedDepth === '1' ? 1 : selectedDepth === '2' ? 2 : null;
+      if (depth) {
+        const adjacency = new Map();
+        for (const l of state.rawLinks) {
+          const sId = String(l?.source || '');
+          const tId = String(l?.target || '');
+          if (!sId || !tId) continue;
+          if (!includedNodeIds.has(sId) || !includedNodeIds.has(tId)) continue;
+          if (!adjacency.has(sId)) adjacency.set(sId, new Set());
+          if (!adjacency.has(tId)) adjacency.set(tId, new Set());
+          adjacency.get(sId).add(tId);
+          adjacency.get(tId).add(sId);
+        }
+        const visited = new Set([state.focusNodeId]);
+        let frontier = new Set([state.focusNodeId]);
+        for (let i = 0; i < depth; i++) {
+          const next = new Set();
+          for (const id of frontier) {
+            const neigh = adjacency.get(id);
+            if (!neigh) continue;
+            for (const nId of neigh) {
+              if (!visited.has(nId)) {
+                visited.add(nId);
+                next.add(nId);
+              }
+            }
+          }
+          frontier = next;
+        }
+        depthNodeIds = visited;
+      }
+    }
+
+    const filteredNodes = state.rawNodes.filter(n => depthNodeIds.has(String(n?.id || '')));
+    const filteredLinks = state.rawLinks.filter(l => {
+      const sId = String(l?.source || '');
+      const tId = String(l?.target || '');
+      return depthNodeIds.has(sId) && depthNodeIds.has(tId);
+    });
+
+    state.filteredNodes = filteredNodes.map(n => ({ ...n }));
+    state.filteredLinks = filteredLinks.map(l => ({ ...l }));
+    state.render();
+  };
+
+  state.render = () => {
+    state.simulation?.stop();
+    host.innerHTML = '';
+    if (miniHost) miniHost.innerHTML = '';
+
+    state.nodesById = new Map(state.filteredNodes.map(n => [String(n.id), n]));
+
+    const width = Math.max(300, mapContainer.clientWidth || 0);
+    const height = Math.max(420, mapContainer.clientHeight || 0);
+
+    const svg = d3.select(host).append('svg').attr('width', width).attr('height', height);
+    state.svg = svg;
+    const g = svg.append('g');
+    state.g = g;
+
+    const zoom = d3.zoom().scaleExtent([0.1, 3]).on('zoom', (event) => {
+      g.attr('transform', event.transform);
+      state.updateMiniViewport();
+    });
+    state.zoom = zoom;
+    svg.call(zoom);
+
+    svg.append('defs').selectAll('marker')
+      .data(['references', 'supersedes', 'ncr'])
+      .enter().append('marker')
+      .attr('id', d => `arrow-${d}`)
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 20)
+      .attr('refY', 0)
+      .attr('markerWidth', 6)
+      .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,-5L10,0L0,5')
+      .attr('fill', d => getRelationshipMapLinkColor(d));
+
+    const degreeById = new Map();
+    for (const l of state.filteredLinks) {
+      const sId = String(l.source);
+      const tId = String(l.target);
+      degreeById.set(sId, (degreeById.get(sId) || 0) + 1);
+      degreeById.set(tId, (degreeById.get(tId) || 0) + 1);
+    }
+
+    const linkSel = g.append('g')
+      .selectAll('path')
+      .data(state.filteredLinks)
+      .enter().append('path')
+      .attr('class', d => `link link-${escapeHtml(String(d.type || ''))}`)
+      .attr('stroke', d => getRelationshipMapLinkColor(d.type))
+      .attr('stroke-width', d => String(d.type || '') === 'ncr' ? 1 : 2)
+      .attr('stroke-dasharray', d => String(d.type || '') === 'references' ? 'none' : '5,5')
+      .attr('fill', 'none')
+      .attr('marker-end', d => `url(#arrow-${String(d.type || 'references')})`)
+      .attr('opacity', 1);
+    state.linkSel = linkSel;
+
+    const nodeSel = g.append('g')
+      .selectAll('g')
+      .data(state.filteredNodes)
+      .enter().append('g')
+      .attr('class', 'node')
+      .call(d3.drag()
+        .on('start', (event, d) => {
+          if (!event.active) state.simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on('drag', (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on('end', (event, d) => {
+          if (!event.active) state.simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        })
+      )
+      .on('click', async (event, d) => {
+        event.stopPropagation();
+        state.focusNodeId = String(d.id);
+        if (getRelationshipMapNodeKind(d.id) === 'doc') {
+          const docId = parseInt(String(d.id).slice(4), 10);
+          if (!Number.isFinite(docId)) return;
+          await state.showNodePanel(docId);
+        } else {
+          showToast(`${String(d.doc_number || 'Item')} selected`, 'info');
+        }
+      })
+      .on('dblclick', (event, d) => {
+        event.stopPropagation();
+        if (getRelationshipMapNodeKind(d.id) !== 'doc') return;
+        const docId = parseInt(String(d.id).slice(4), 10);
+        if (!Number.isFinite(docId)) return;
+        viewDocument(docId);
+      });
+    state.nodeSel = nodeSel;
+
+    nodeSel.append('circle')
+      .attr('r', d => relationshipMapNodeRadius(d, degreeById))
+      .attr('fill', d => getRelationshipMapNodeFill(d.status))
+      .attr('stroke', d => getRelationshipMapNodeStroke(d))
+      .attr('stroke-width', 2);
+
+    const labelSel = nodeSel.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '0.35em')
+      .attr('fill', 'white')
+      .attr('font-size', '10px')
+      .attr('font-weight', 'bold')
+      .style('display', state.labelsVisible ? null : 'none')
+      .text(d => String(d.doc_number || ''));
+    state.labelSel = labelSel;
+
+    nodeSel.append('title').text(d => `${String(d.doc_number || '')}: ${String(d.title || '')}`);
+
+    state.simulation = d3.forceSimulation(state.filteredNodes)
+      .force('link', d3.forceLink(state.filteredLinks).id(d => d.id).distance(150))
+      .force('charge', d3.forceManyBody().strength(-320))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(d => relationshipMapNodeRadius(d, degreeById) + 10));
+
+    state.simulation.on('tick', () => {
+      linkSel.attr('d', d => {
+        const src = d.source;
+        const tgt = d.target;
+        const dx = tgt.x - src.x;
+        const dy = tgt.y - src.y;
+        const dr = Math.sqrt(dx * dx + dy * dy);
+        return `M${src.x},${src.y}A${dr},${dr} 0 0,1 ${tgt.x},${tgt.y}`;
+      });
+      nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+      state.requestMiniUpdate();
+    });
+
+    svg.on('click', () => {
+      state.clearHighlight();
+    });
+
+    state.initMiniMap(width, height);
+    state.updateMiniViewport();
+  };
+
+  state.requestMiniUpdate = () => {
+    if (!state.mini?.svg || state.mini.pending) return;
+    state.mini.pending = true;
+    requestAnimationFrame(() => {
+      state.mini.pending = false;
+      state.updateMiniMap();
+      state.updateMiniViewport();
+    });
+  };
+
+  state.initMiniMap = (mainW, mainH) => {
+    const miniWrap = document.querySelector('#page-relationship-map .mini-map');
+    if (!miniHost || !miniWrap) return;
+    const w = Math.max(120, miniWrap.clientWidth || 200);
+    const h = Math.max(90, miniWrap.clientHeight || 150);
+    state.mini.width = w;
+    state.mini.height = h;
+    const mSvg = d3.select(miniHost).append('svg').attr('width', w).attr('height', h);
+    state.mini.svg = mSvg;
+    state.mini.linkSel = mSvg.append('g').selectAll('line').data(state.filteredLinks).enter().append('line')
+      .attr('stroke', d => getRelationshipMapLinkColor(d.type))
+      .attr('stroke-width', 1)
+      .attr('opacity', 0.55);
+    state.mini.nodeSel = mSvg.append('g').selectAll('circle').data(state.filteredNodes).enter().append('circle')
+      .attr('r', 2.2)
+      .attr('fill', d => getRelationshipMapNodeFill(d.status))
+      .attr('opacity', 0.85);
+    state.updateMiniMap();
+  };
+
+  state.updateMiniMap = () => {
+    if (!state.mini?.svg || state.filteredNodes.length === 0) return;
+    const w = state.mini.width;
+    const h = state.mini.height;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const n of state.filteredNodes) {
+      if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) continue;
+      minX = Math.min(minX, n.x);
+      maxX = Math.max(maxX, n.x);
+      minY = Math.min(minY, n.y);
+      maxY = Math.max(maxY, n.y);
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) return;
+    const pad = 30;
+    minX -= pad; maxX += pad; minY -= pad; maxY += pad;
+    const dx = Math.max(1, maxX - minX);
+    const dy = Math.max(1, maxY - minY);
+    const scale = Math.min(w / dx, h / dy);
+    const tx = (w - dx * scale) / 2;
+    const ty = (h - dy * scale) / 2;
+    const mx = x => tx + (x - minX) * scale;
+    const my = y => ty + (y - minY) * scale;
+
+    state.mini.linkSel
+      .attr('x1', d => mx(d.source?.x ?? 0))
+      .attr('y1', d => my(d.source?.y ?? 0))
+      .attr('x2', d => mx(d.target?.x ?? 0))
+      .attr('y2', d => my(d.target?.y ?? 0));
+
+    state.mini.nodeSel
+      .attr('cx', d => mx(d.x ?? 0))
+      .attr('cy', d => my(d.y ?? 0));
+
+    state.mini.bounds = { minX, maxX, minY, maxY, scale, tx, ty, w, h };
+  };
+
+  state.updateMiniViewport = () => {
+    const viewport = document.getElementById('mini-viewport');
+    if (!viewport || !state.mini?.bounds || !state.svg) return;
+    const b = state.mini.bounds;
+    const mainW = state.svg.attr('width');
+    const mainH = state.svg.attr('height');
+    const w = parseFloat(mainW) || (mapContainer.clientWidth || 0);
+    const h = parseFloat(mainH) || (mapContainer.clientHeight || 0);
+    const z = d3.zoomTransform(state.svg.node());
+    const x0 = (0 - z.x) / z.k;
+    const y0 = (0 - z.y) / z.k;
+    const x1 = (w - z.x) / z.k;
+    const y1 = (h - z.y) / z.k;
+
+    const mx = x => b.tx + (x - b.minX) * b.scale;
+    const my = y => b.ty + (y - b.minY) * b.scale;
+    const left = mx(x0);
+    const top = my(y0);
+    const right = mx(x1);
+    const bottom = my(y1);
+    const vw = Math.max(10, right - left);
+    const vh = Math.max(10, bottom - top);
+
+    viewport.style.transform = `translate(${left}px, ${top}px)`;
+    viewport.style.width = `${vw}px`;
+    viewport.style.height = `${vh}px`;
+  };
+
+  state.showNodePanel = async (docId) => {
+    const panel = document.getElementById('side-panel');
+    const content = document.getElementById('side-panel-content');
+    if (!panel || !content) return;
+    panel.style.display = 'block';
+    content.innerHTML = `<div style="color:rgba(238,242,247,0.8);font-size:12px;">Loading...</div>`;
+    try {
+      const r = await fetch(`${API_BASE_URL}/documents/${docId}/relationships`, { cache: 'no-store' });
+      const d = await r.json().catch(() => null);
+      if (!r.ok || !d?.document) {
+        content.innerHTML = `<div style="color:rgba(238,242,247,0.8);font-size:12px;">Unable to load relationships.</div>`;
+        return;
+      }
+      content.innerHTML = state.renderPanelHtml(d);
+    } catch {
+      content.innerHTML = `<div style="color:rgba(238,242,247,0.8);font-size:12px;">Unable to load relationships.</div>`;
+    }
+  };
+
+  state.renderPanelHtml = (data) => {
+    const doc = data.document || {};
+    const refs = Array.isArray(data.references) ? data.references : [];
+    const refBy = Array.isArray(data.referenced_by) ? data.referenced_by : [];
+    const ncrs = Array.isArray(data.linked_ncrs) ? data.linked_ncrs : [];
+    const capas = Array.isArray(data.linked_capas) ? data.linked_capas : [];
+    const docId = doc.id;
+
+    const relItems = (items, kind) => items.map(it => {
+      if (kind === 'doc') {
+        const nodeId = `doc-${it.doc_id}`;
+        return `
+          <div class="rel-item" onclick="focusNode('${escapeHtml(String(nodeId))}');">
+            <span class="rel-doc-number">${escapeHtml(String(it.doc_number || ''))}</span>
+            <span class="rel-doc-title">${escapeHtml(String(it.title || ''))}</span>
+          </div>
+        `;
+      }
+      if (kind === 'ncr') {
+        const nodeId = `ncr-${it.ncr_id}`;
+        return `
+          <div class="rel-item" onclick="focusNode('${escapeHtml(String(nodeId))}');">
+            <span class="rel-doc-number">NCR</span>
+            <span class="rel-doc-title">${escapeHtml(String(it.ncr_number || ''))}</span>
+          </div>
+        `;
+      }
+      if (kind === 'capa') {
+        const nodeId = `capa-${it.capa_id}`;
+        return `
+          <div class="rel-item" onclick="focusNode('${escapeHtml(String(nodeId))}');">
+            <span class="rel-doc-number">CAPA</span>
+            <span class="rel-doc-title">${escapeHtml(String(it.capa_number || ''))}</span>
+          </div>
+        `;
+      }
+      return '';
+    }).join('');
+
+    return `
+      <div class="panel-doc-header">
+        <span class="doc-number" style="font-weight:800;">${escapeHtml(String(doc.doc_number || ''))}</span>
+        <span class="badge badge-${getStatusBadge(String(doc.status || ''))}">${escapeHtml(String(doc.status || ''))}</span>
+      </div>
+      <h3>${escapeHtml(String(doc.title || ''))}</h3>
+      <div class="panel-meta">
+        <div class="meta-row"><label>Category</label><span>${escapeHtml(String(doc.category || '-'))}</span></div>
+        <div class="meta-row"><label>Revision</label><span>${escapeHtml(String(doc.revision || '-'))}</span></div>
+        <div class="meta-row"><label>Review Date</label><span>${doc.review_date ? new Date(doc.review_date).toLocaleDateString() : '-'}</span></div>
+        <div class="meta-row"><label>Owner</label><span>${escapeHtml(String(doc.owner || '-'))}</span></div>
+      </div>
+      <div class="panel-relationships">
+        <h4 style="font-size:13px; margin: 12px 0 6px;">Relationships</h4>
+        <div class="rel-section">
+          <label>References (${refs.length})</label>
+          ${refs.length ? relItems(refs, 'doc') : `<div style="color:var(--text-muted);font-size:12px;">None</div>`}
+        </div>
+        <div class="rel-section">
+          <label>Referenced By (${refBy.length})</label>
+          ${refBy.length ? relItems(refBy, 'doc') : `<div style="color:var(--text-muted);font-size:12px;">None</div>`}
+        </div>
+        <div class="rel-section">
+          <label>Linked NCRs (${ncrs.length})</label>
+          ${ncrs.length ? relItems(ncrs, 'ncr') : `<div style="color:var(--text-muted);font-size:12px;">None</div>`}
+        </div>
+        <div class="rel-section">
+          <label>Linked CAPAs (${capas.length})</label>
+          ${capas.length ? relItems(capas, 'capa') : `<div style="color:var(--text-muted);font-size:12px;">None</div>`}
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button type="button" class="btn btn-primary" onclick="viewDocument(${Number(docId)})">Open Document</button>
+        <button type="button" class="btn btn-ghost" onclick="highlightConnections('doc-${Number(docId)}')">Highlight Connections</button>
+      </div>
+    `;
+  };
+
+  state.applyFiltersAndRender();
+}
+
+window.focusNode = function(nodeId) {
+  const s = window.__relationshipMap;
+  if (!s?.svg || !s?.zoom) return;
+  const n = s.nodesById?.get(String(nodeId));
+  if (!n || !Number.isFinite(n.x) || !Number.isFinite(n.y)) return;
+  const mapContainer = document.querySelector('#page-relationship-map .map-container');
+  const width = Math.max(300, mapContainer?.clientWidth || 0);
+  const height = Math.max(420, mapContainer?.clientHeight || 0);
+  s.focusNodeId = String(nodeId);
+  s.svg.transition().duration(750).call(
+    s.zoom.transform,
+    d3.zoomIdentity.translate(width / 2, height / 2).scale(1.5).translate(-n.x, -n.y)
+  );
+};
+
+window.highlightConnections = function(nodeId) {
+  const s = window.__relationshipMap;
+  if (!s?.nodeSel || !s?.linkSel) return;
+  const centerId = String(nodeId || '');
+  const connected = new Set([centerId]);
+  for (const l of s.filteredLinks || []) {
+    const sId = String(l.source?.id ?? l.source ?? '');
+    const tId = String(l.target?.id ?? l.target ?? '');
+    if (sId === centerId) connected.add(tId);
+    if (tId === centerId) connected.add(sId);
+  }
+  s.nodeSel.select('circle').attr('opacity', d => connected.has(String(d.id)) ? 1 : 0.15);
+  s.linkSel.attr('opacity', d => {
+    const sId = String(d.source?.id ?? d.source ?? '');
+    const tId = String(d.target?.id ?? d.target ?? '');
+    return (sId === centerId || tId === centerId) ? 1 : 0.05;
+  });
+};
 
 window.onpopstate = async () => {
   if (window.location.pathname === '/login') {

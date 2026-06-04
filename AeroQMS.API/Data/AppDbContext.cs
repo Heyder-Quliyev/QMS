@@ -17,6 +17,7 @@ namespace AeroQMS.API.Data
         public DbSet<DocumentAcknowledgmentRequirement> DocumentAcknowledgmentRequirements { get; set; }
         public DbSet<ReviewAutomationSetting> ReviewAutomationSettings { get; set; }
         public DbSet<DocumentAccessLog> DocumentAccessLogs { get; set; }
+        public DbSet<DocumentRelationship> DocumentRelationships { get; set; }
         public DbSet<NonConformance> NonConformances { get; set; }
         public DbSet<Checklist> Checklists { get; set; }
         public DbSet<ChecklistItem> ChecklistItems { get; set; }
@@ -159,6 +160,17 @@ namespace AeroQMS.API.Data
                 entity.HasIndex(e => e.UserId);
                 entity.Property(e => e.Source).HasMaxLength(50);
                 entity.Property(e => e.IpAddress).HasMaxLength(45);
+            });
+
+            modelBuilder.Entity<DocumentRelationship>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.RelationshipType).IsRequired().HasMaxLength(50);
+                entity.HasIndex(e => e.SourceDocumentId);
+                entity.HasIndex(e => e.TargetDocumentId);
+                entity.HasIndex(e => e.TargetNcrId);
+                entity.HasIndex(e => e.TargetCapaId);
+                entity.HasIndex(e => e.CreatedAt);
             });
 
             // Configure NCRHistory

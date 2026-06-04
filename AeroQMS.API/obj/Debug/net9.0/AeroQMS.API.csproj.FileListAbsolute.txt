@@ -227,5 +227,6 @@ c:\Users\Acer\Downloads\QMS Soft\.tmp_build\AeroQMS.API.runtimeconfig.json
 c:\Users\Acer\Downloads\QMS Soft\.tmp_build\AeroQMS.API.dll
 c:\Users\Acer\Downloads\QMS Soft\.tmp_build\AeroQMS.API.pdb
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\bin\Debug\net9.0\BCrypt.Net-Next.dll
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\AeroQMS.API.sourcelink.json
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\g3kvu583ir-lbomskmdhp.gz
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\g3kvu583ir-teypi8hzqk.gz

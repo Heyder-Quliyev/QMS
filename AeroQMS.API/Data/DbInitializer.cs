@@ -15,6 +15,7 @@ namespace AeroQMS.API.Data
             EnsureDocumentAcknowledgmentSchema(context);
             EnsureReviewAutomationSchema(context);
             EnsureDocumentAccessSchema(context);
+            EnsureDocumentRelationshipSchema(context);
 
             EnsureSeedAdminUser(context);
 
@@ -397,6 +398,42 @@ ON DocumentAccessLogs (DocumentId);");
                 context.Database.ExecuteSqlRaw(@"
 CREATE INDEX IF NOT EXISTS IX_DocumentAccessLogs_AccessedAt
 ON DocumentAccessLogs (AccessedAt);");
+            }
+            catch
+            {
+            }
+        }
+
+        private static void EnsureDocumentRelationshipSchema(AppDbContext context)
+        {
+            try
+            {
+                context.Database.ExecuteSqlRaw(@"
+CREATE TABLE IF NOT EXISTS DocumentRelationships (
+  Id TEXT NOT NULL PRIMARY KEY,
+  SourceDocumentId INTEGER NOT NULL,
+  TargetDocumentId INTEGER NULL,
+  TargetNcrId INTEGER NULL,
+  TargetCapaId TEXT NULL,
+  RelationshipType TEXT NOT NULL,
+  CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);");
+
+                context.Database.ExecuteSqlRaw(@"
+CREATE INDEX IF NOT EXISTS IX_DocumentRelationships_SourceDocumentId
+ON DocumentRelationships (SourceDocumentId);");
+
+                context.Database.ExecuteSqlRaw(@"
+CREATE INDEX IF NOT EXISTS IX_DocumentRelationships_TargetDocumentId
+ON DocumentRelationships (TargetDocumentId);");
+
+                context.Database.ExecuteSqlRaw(@"
+CREATE INDEX IF NOT EXISTS IX_DocumentRelationships_TargetNcrId
+ON DocumentRelationships (TargetNcrId);");
+
+                context.Database.ExecuteSqlRaw(@"
+CREATE INDEX IF NOT EXISTS IX_DocumentRelationships_TargetCapaId
+ON DocumentRelationships (TargetCapaId);");
             }
             catch
             {

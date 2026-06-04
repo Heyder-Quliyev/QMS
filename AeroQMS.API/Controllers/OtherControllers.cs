@@ -2345,6 +2345,147 @@ namespace AeroQMS.API.Controllers
             return File(pdf, "application/pdf", $"{doc.DocumentNumber}_qr_label.pdf");
         }
 
+        private static string DocNodeId(int id) => $"doc-{id}";
+        private static string NcrNodeId(int id) => $"ncr-{id}";
+        private static string CapaNodeId(Guid id) => $"capa-{id}";
+
+        [HttpGet("relationships")]
+        public async Task<IActionResult> GetDocumentRelationships()
+        {
+            var rels = await _context.DocumentRelationships
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            var ncrIds = rels
+                .Where(r => r.TargetNcrId.HasValue)
+                .Select(r => r.TargetNcrId!.Value)
+                .Distinct()
+                .ToList();
+
+            var capaIds = rels
+                .Where(r => r.TargetCapaId.HasValue)
+                .Select(r => r.TargetCapaId!.Value)
+                .Distinct()
+                .ToList();
+
+            var docs = await _context.Documents.ToListAsync();
+
+            var ncrs = ncrIds.Count == 0
+                ? new List<NonConformance>()
+                : await _context.NonConformances.Where(n => ncrIds.Contains(n.Id)).ToListAsync();
+
+            var capas = capaIds.Count == 0
+                ? new List<CapaAction>()
+                : await _context.CapaActions.Where(c => capaIds.Contains(c.Id)).ToListAsync();
+
+            var nodes = new List<object>();
+            nodes.AddRange(docs.Select(d => new
+            {
+                id = DocNodeId(d.Id),
+                doc_number = d.DocumentNumber,
+                title = d.Title,
+                status = NormalizeRoleKey(d.Status),
+                category = d.Category,
+                revision = d.Revision,
+                owner = d.Owner,
+                review_date = d.ReviewDate
+            }));
+
+            nodes.AddRange(ncrs.Select(n => new
+            {
+                id = NcrNodeId(n.Id),
+                doc_number = n.NCRNumber,
+                title = n.Title,
+                status = NormalizeRoleKey(n.Status),
+                category = n.Category,
+                revision = "",
+                owner = n.RaisedBy,
+                review_date = n.Date
+            }));
+
+            nodes.AddRange(capas.Select(c => new
+            {
+                id = CapaNodeId(c.Id),
+                doc_number = $"CAPA-{c.Id.ToString().Substring(0, 8)}",
+                title = c.Title,
+                status = NormalizeRoleKey(c.Status),
+                category = "CAPA",
+                revision = "",
+                owner = c.ResponsiblePersonName,
+                review_date = c.DueDate
+            }));
+
+            var links = rels.Select(r =>
+            {
+                var src = DocNodeId(r.SourceDocumentId);
+                string tgt;
+                var type = string.IsNullOrWhiteSpace(r.RelationshipType) ? "references" : NormalizeRoleKey(r.RelationshipType);
+                if (r.TargetDocumentId.HasValue) tgt = DocNodeId(r.TargetDocumentId.Value);
+                else if (r.TargetNcrId.HasValue) { tgt = NcrNodeId(r.TargetNcrId.Value); type = "ncr"; }
+                else if (r.TargetCapaId.HasValue) { tgt = CapaNodeId(r.TargetCapaId.Value); type = "ncr"; }
+                else tgt = "";
+                return new { source = src, target = tgt, type };
+            })
+            .Where(l => !string.IsNullOrWhiteSpace(l.target))
+            .ToList();
+
+            return Ok(new { nodes, links });
+        }
+
+        [HttpGet("{id}/relationships")]
+        public async Task<IActionResult> GetDocumentRelationshipDetails(int id)
+        {
+            var doc = await _context.Documents.FindAsync(id);
+            if (doc == null) return NotFound(new { error = "Document not found" });
+
+            var outgoing = await _context.DocumentRelationships.Where(r => r.SourceDocumentId == id).ToListAsync();
+            var incoming = await _context.DocumentRelationships.Where(r => r.TargetDocumentId == id).ToListAsync();
+
+            var referencedDocIds = outgoing.Where(r => r.TargetDocumentId.HasValue && NormalizeRoleKey(r.RelationshipType) == "references")
+                .Select(r => r.TargetDocumentId!.Value).Distinct().ToList();
+
+            var referencingDocIds = incoming.Where(r => NormalizeRoleKey(r.RelationshipType) == "references")
+                .Select(r => r.SourceDocumentId).Distinct().ToList();
+
+            var linkedNcrIds = outgoing.Where(r => r.TargetNcrId.HasValue).Select(r => r.TargetNcrId!.Value).Distinct().ToList();
+            var linkedCapaIds = outgoing.Where(r => r.TargetCapaId.HasValue).Select(r => r.TargetCapaId!.Value).Distinct().ToList();
+
+            var referencedDocs = referencedDocIds.Count == 0
+                ? new List<AeroQMS.API.Models.Document>()
+                : await _context.Documents.Where(d => referencedDocIds.Contains(d.Id)).ToListAsync();
+
+            var referencingDocs = referencingDocIds.Count == 0
+                ? new List<AeroQMS.API.Models.Document>()
+                : await _context.Documents.Where(d => referencingDocIds.Contains(d.Id)).ToListAsync();
+
+            var ncrs = linkedNcrIds.Count == 0
+                ? new List<NonConformance>()
+                : await _context.NonConformances.Where(n => linkedNcrIds.Contains(n.Id)).ToListAsync();
+
+            var capas = linkedCapaIds.Count == 0
+                ? new List<CapaAction>()
+                : await _context.CapaActions.Where(c => linkedCapaIds.Contains(c.Id)).ToListAsync();
+
+            return Ok(new
+            {
+                document = new
+                {
+                    id = doc.Id,
+                    doc_number = doc.DocumentNumber,
+                    title = doc.Title,
+                    status = doc.Status,
+                    category = doc.Category,
+                    revision = doc.Revision,
+                    review_date = doc.ReviewDate,
+                    owner = doc.Owner
+                },
+                references = referencedDocs.Select(d => new { doc_id = d.Id, doc_number = d.DocumentNumber, title = d.Title }).ToList(),
+                referenced_by = referencingDocs.Select(d => new { doc_id = d.Id, doc_number = d.DocumentNumber, title = d.Title }).ToList(),
+                linked_ncrs = ncrs.Select(n => new { ncr_id = n.Id, ncr_number = n.NCRNumber, title = n.Title }).ToList(),
+                linked_capas = capas.Select(c => new { capa_id = c.Id, capa_number = $"CAPA-{c.Id.ToString().Substring(0, 8)}", title = c.Title }).ToList()
+            });
+        }
+
         [HttpGet("export")]
         public async Task<IActionResult> ExportToCsv()
         {
