@@ -1799,6 +1799,48 @@
   },
   {
     "ContainingType": "AeroQMS.API.Controllers.DocumentsController",
+    "Method": "AddDocumentRelationship",
+    "RelativePath": "api/Documents/{id}/relationships",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "body",
+        "Type": "System.Text.Json.JsonElement",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "AeroQMS.API.Controllers.DocumentsController",
+    "Method": "DeleteDocumentRelationship",
+    "RelativePath": "api/Documents/{id}/relationships/{relId}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "relId",
+        "Type": "System.Guid",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "AeroQMS.API.Controllers.DocumentsController",
     "Method": "GetDocumentVersions",
     "RelativePath": "api/Documents/{id}/versions",
     "HttpMethod": "GET",
@@ -1958,6 +2000,16 @@
     "ContainingType": "AeroQMS.API.Controllers.DocumentsController",
     "Method": "GetDocumentRelationships",
     "RelativePath": "api/Documents/relationships",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "AeroQMS.API.Controllers.DocumentsController",
+    "Method": "GetDocumentRelationshipsMap",
+    "RelativePath": "api/Documents/relationships/map",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,

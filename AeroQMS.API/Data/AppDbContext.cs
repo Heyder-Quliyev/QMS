@@ -166,10 +166,12 @@ namespace AeroQMS.API.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.RelationshipType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Note);
                 entity.HasIndex(e => e.SourceDocumentId);
                 entity.HasIndex(e => e.TargetDocumentId);
                 entity.HasIndex(e => e.TargetNcrId);
                 entity.HasIndex(e => e.TargetCapaId);
+                entity.HasIndex(e => e.CreatedById);
                 entity.HasIndex(e => e.CreatedAt);
             });
 

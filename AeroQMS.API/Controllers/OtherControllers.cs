@@ -2349,6 +2349,18 @@ namespace AeroQMS.API.Controllers
         private static string NcrNodeId(int id) => $"ncr-{id}";
         private static string CapaNodeId(Guid id) => $"capa-{id}";
 
+        private static string NormalizeRelationshipTypeKey(string? type)
+        {
+            var t = NormalizeRoleKey(type);
+            if (string.IsNullOrWhiteSpace(t)) return "related_to";
+            if (t is "reference" or "references") return "references";
+            if (t is "supersede" or "supersedes") return "supersedes";
+            if (t is "related" or "related_to" or "relatedto") return "related_to";
+            if (t is "linked_ncr" or "linked_to_ncr" or "ncr") return "linked_ncr";
+            if (t is "linked_capa" or "linked_to_capa" or "capa") return "linked_capa";
+            return t;
+        }
+
         [HttpGet("relationships")]
         public async Task<IActionResult> GetDocumentRelationships()
         {
@@ -2419,10 +2431,10 @@ namespace AeroQMS.API.Controllers
             {
                 var src = DocNodeId(r.SourceDocumentId);
                 string tgt;
-                var type = string.IsNullOrWhiteSpace(r.RelationshipType) ? "references" : NormalizeRoleKey(r.RelationshipType);
+                var type = NormalizeRelationshipTypeKey(r.RelationshipType);
                 if (r.TargetDocumentId.HasValue) tgt = DocNodeId(r.TargetDocumentId.Value);
-                else if (r.TargetNcrId.HasValue) { tgt = NcrNodeId(r.TargetNcrId.Value); type = "ncr"; }
-                else if (r.TargetCapaId.HasValue) { tgt = CapaNodeId(r.TargetCapaId.Value); type = "ncr"; }
+                else if (r.TargetNcrId.HasValue) { tgt = NcrNodeId(r.TargetNcrId.Value); type = "linked_ncr"; }
+                else if (r.TargetCapaId.HasValue) { tgt = CapaNodeId(r.TargetCapaId.Value); type = "linked_capa"; }
                 else tgt = "";
                 return new { source = src, target = tgt, type };
             })
@@ -2430,6 +2442,12 @@ namespace AeroQMS.API.Controllers
             .ToList();
 
             return Ok(new { nodes, links });
+        }
+
+        [HttpGet("relationships/map")]
+        public async Task<IActionResult> GetDocumentRelationshipsMap()
+        {
+            return await GetDocumentRelationships();
         }
 
         [HttpGet("{id}/relationships")]
@@ -2466,6 +2484,79 @@ namespace AeroQMS.API.Controllers
                 ? new List<CapaAction>()
                 : await _context.CapaActions.Where(c => linkedCapaIds.Contains(c.Id)).ToListAsync();
 
+            var outgoingDocIds = outgoing.Where(r => r.TargetDocumentId.HasValue).Select(r => r.TargetDocumentId!.Value).Distinct().ToList();
+            var outgoingDocs = outgoingDocIds.Count == 0
+                ? new List<AeroQMS.API.Models.Document>()
+                : await _context.Documents.Where(d => outgoingDocIds.Contains(d.Id)).ToListAsync();
+
+            var outgoingDocLookup = outgoingDocs.ToDictionary(d => d.Id, d => d);
+            var outgoingNcrLookup = ncrs.ToDictionary(n => n.Id, n => n);
+            var outgoingCapaLookup = capas.ToDictionary(c => c.Id, c => c);
+
+            var relationships = outgoing
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r =>
+                {
+                    if (r.TargetDocumentId.HasValue && outgoingDocLookup.TryGetValue(r.TargetDocumentId.Value, out var td))
+                    {
+                        return (object)new
+                        {
+                            id = r.Id,
+                            relationship_type = NormalizeRelationshipTypeKey(r.RelationshipType),
+                            target_kind = "document",
+                            target_doc_id = td.Id,
+                            target_doc_number = td.DocumentNumber,
+                            target_title = td.Title,
+                            note = r.Note,
+                            created_at = r.CreatedAt,
+                            created_by_id = r.CreatedById
+                        };
+                    }
+
+                    if (r.TargetNcrId.HasValue && outgoingNcrLookup.TryGetValue(r.TargetNcrId.Value, out var tn))
+                    {
+                        return (object)new
+                        {
+                            id = r.Id,
+                            relationship_type = "linked_ncr",
+                            target_kind = "ncr",
+                            target_ncr_id = tn.Id,
+                            target_ncr_number = tn.NCRNumber,
+                            target_title = tn.Title,
+                            note = r.Note,
+                            created_at = r.CreatedAt,
+                            created_by_id = r.CreatedById
+                        };
+                    }
+
+                    if (r.TargetCapaId.HasValue && outgoingCapaLookup.TryGetValue(r.TargetCapaId.Value, out var tc))
+                    {
+                        return (object)new
+                        {
+                            id = r.Id,
+                            relationship_type = "linked_capa",
+                            target_kind = "capa",
+                            target_capa_id = tc.Id,
+                            target_capa_number = $"CAPA-{tc.Id.ToString().Substring(0, 8)}",
+                            target_title = tc.Title,
+                            note = r.Note,
+                            created_at = r.CreatedAt,
+                            created_by_id = r.CreatedById
+                        };
+                    }
+
+                    return (object)new
+                    {
+                        id = r.Id,
+                        relationship_type = NormalizeRelationshipTypeKey(r.RelationshipType),
+                        target_kind = "unknown",
+                        note = r.Note,
+                        created_at = r.CreatedAt,
+                        created_by_id = r.CreatedById
+                    };
+                })
+                .ToList();
+
             return Ok(new
             {
                 document = new
@@ -2482,8 +2573,86 @@ namespace AeroQMS.API.Controllers
                 references = referencedDocs.Select(d => new { doc_id = d.Id, doc_number = d.DocumentNumber, title = d.Title }).ToList(),
                 referenced_by = referencingDocs.Select(d => new { doc_id = d.Id, doc_number = d.DocumentNumber, title = d.Title }).ToList(),
                 linked_ncrs = ncrs.Select(n => new { ncr_id = n.Id, ncr_number = n.NCRNumber, title = n.Title }).ToList(),
-                linked_capas = capas.Select(c => new { capa_id = c.Id, capa_number = $"CAPA-{c.Id.ToString().Substring(0, 8)}", title = c.Title }).ToList()
+                linked_capas = capas.Select(c => new { capa_id = c.Id, capa_number = $"CAPA-{c.Id.ToString().Substring(0, 8)}", title = c.Title }).ToList(),
+                relationships
             });
+        }
+
+        [HttpPost("{id}/relationships")]
+        public async Task<IActionResult> AddDocumentRelationship(int id, [FromBody] JsonElement body)
+        {
+            var doc = await _context.Documents.FindAsync(id);
+            if (doc == null) return NotFound(new { error = "Document not found" });
+
+            string? relationshipType = null;
+            if (body.TryGetProperty("relationship_type", out var rtProp)) relationshipType = rtProp.GetString();
+            else if (body.TryGetProperty("relationshipType", out var rtProp2)) relationshipType = rtProp2.GetString();
+            var typeKey = NormalizeRelationshipTypeKey(relationshipType);
+
+            int? targetDocId = null;
+            if (body.TryGetProperty("target_doc_id", out var tdProp) && tdProp.ValueKind is JsonValueKind.Number) targetDocId = tdProp.GetInt32();
+            else if (body.TryGetProperty("target_document_id", out var tdProp2) && tdProp2.ValueKind is JsonValueKind.Number) targetDocId = tdProp2.GetInt32();
+
+            int? targetNcrId = null;
+            if (body.TryGetProperty("target_ncr_id", out var tnProp) && tnProp.ValueKind is JsonValueKind.Number) targetNcrId = tnProp.GetInt32();
+
+            Guid? targetCapaId = null;
+            if (body.TryGetProperty("target_capa_id", out var tcProp))
+            {
+                if (tcProp.ValueKind == JsonValueKind.String && Guid.TryParse(tcProp.GetString(), out var g)) targetCapaId = g;
+            }
+
+            string? note = null;
+            if (body.TryGetProperty("note", out var noteProp) && noteProp.ValueKind == JsonValueKind.String) note = noteProp.GetString();
+
+            if (typeKey is "linked_ncr")
+            {
+                if (!targetNcrId.HasValue) return BadRequest(new { error = "target_ncr_id is required for linked_ncr" });
+                targetDocId = null;
+                targetCapaId = null;
+            }
+            else if (typeKey is "linked_capa")
+            {
+                if (!targetCapaId.HasValue) return BadRequest(new { error = "target_capa_id is required for linked_capa" });
+                targetDocId = null;
+                targetNcrId = null;
+            }
+            else
+            {
+                if (!targetDocId.HasValue) return BadRequest(new { error = "target_doc_id is required for document relationships" });
+                targetNcrId = null;
+                targetCapaId = null;
+            }
+
+            var createdById = GetAuthenticatedUserId();
+
+            var rel = new DocumentRelationship
+            {
+                Id = Guid.NewGuid(),
+                SourceDocumentId = id,
+                TargetDocumentId = targetDocId,
+                TargetNcrId = targetNcrId,
+                TargetCapaId = targetCapaId,
+                RelationshipType = typeKey,
+                Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
+                CreatedById = createdById,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.DocumentRelationships.Add(rel);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { id = rel.Id });
+        }
+
+        [HttpDelete("{id}/relationships/{relId}")]
+        public async Task<IActionResult> DeleteDocumentRelationship(int id, Guid relId)
+        {
+            var rel = await _context.DocumentRelationships.FirstOrDefaultAsync(r => r.Id == relId && r.SourceDocumentId == id);
+            if (rel == null) return NotFound(new { error = "Relationship not found" });
+            _context.DocumentRelationships.Remove(rel);
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true });
         }
 
         [HttpGet("export")]

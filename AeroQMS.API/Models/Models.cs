@@ -117,6 +117,8 @@ namespace AeroQMS.API.Models
         public int? TargetNcrId { get; set; }
         public Guid? TargetCapaId { get; set; }
         public string RelationshipType { get; set; }
+        public string? Note { get; set; }
+        public int? CreatedById { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 

@@ -416,8 +416,13 @@ CREATE TABLE IF NOT EXISTS DocumentRelationships (
   TargetNcrId INTEGER NULL,
   TargetCapaId TEXT NULL,
   RelationshipType TEXT NOT NULL,
+  Note TEXT NULL,
+  CreatedById INTEGER NULL,
   CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );");
+
+                try { context.Database.ExecuteSqlRaw(@"ALTER TABLE DocumentRelationships ADD COLUMN Note TEXT NULL;"); } catch { }
+                try { context.Database.ExecuteSqlRaw(@"ALTER TABLE DocumentRelationships ADD COLUMN CreatedById INTEGER NULL;"); } catch { }
 
                 context.Database.ExecuteSqlRaw(@"
 CREATE INDEX IF NOT EXISTS IX_DocumentRelationships_SourceDocumentId
@@ -434,6 +439,10 @@ ON DocumentRelationships (TargetNcrId);");
                 context.Database.ExecuteSqlRaw(@"
 CREATE INDEX IF NOT EXISTS IX_DocumentRelationships_TargetCapaId
 ON DocumentRelationships (TargetCapaId);");
+
+                context.Database.ExecuteSqlRaw(@"
+CREATE INDEX IF NOT EXISTS IX_DocumentRelationships_CreatedById
+ON DocumentRelationships (CreatedById);");
             }
             catch
             {

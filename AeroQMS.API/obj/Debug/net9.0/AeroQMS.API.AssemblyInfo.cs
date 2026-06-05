@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AeroQMS.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7443a5af209e4e1603fed8a04ebeb405b1fd732e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+aacd9f08aa02b9b682042487ac8d465d349f17fc")]
 [assembly: System.Reflection.AssemblyProductAttribute("AeroQMS.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AeroQMS.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
