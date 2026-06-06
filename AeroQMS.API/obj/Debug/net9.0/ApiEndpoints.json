@@ -1883,6 +1883,22 @@
   },
   {
     "ContainingType": "AeroQMS.API.Controllers.DocumentsController",
+    "Method": "GetDocumentAnalytics",
+    "RelativePath": "api/Documents/analytics",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "period",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "AeroQMS.API.Controllers.DocumentsController",
     "Method": "GetApprovalUsers",
     "RelativePath": "api/Documents/approval-users",
     "HttpMethod": "GET",

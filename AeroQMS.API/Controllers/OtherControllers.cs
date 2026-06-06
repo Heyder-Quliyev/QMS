@@ -2450,6 +2450,299 @@ namespace AeroQMS.API.Controllers
             return await GetDocumentRelationships();
         }
 
+        [HttpGet("analytics")]
+        public async Task<IActionResult> GetDocumentAnalytics([FromQuery] int period = 30)
+        {
+            if (period <= 0) period = 30;
+            if (period > 3650) period = 3650;
+
+            var now = DateTime.UtcNow;
+            var from = now.AddDays(-period);
+            var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var reviewSoonUntil = now.AddDays(30);
+
+            static string StatusKey(string? status)
+            {
+                var s = NormalizeRoleKey(status);
+                if (string.IsNullOrWhiteSpace(s)) return "draft";
+                if (s.Contains("due_for_review") || s.Contains("due") || s.Contains("review")) return "due_for_review";
+                if (s.Contains("expired") || s.Contains("overdue")) return "expired";
+                if (s.Contains("approved") || s.Contains("valid")) return "approved";
+                if (s.Contains("draft")) return "draft";
+                return s;
+            }
+
+            var docs = await _context.Documents.ToListAsync();
+            var totalDocs = docs.Count;
+            var newThisMonth = docs.Count(d => d.EffectiveDate >= monthStart);
+
+            var dueForReview = docs.Count(d =>
+            {
+                var key = StatusKey(d.Status);
+                if (key == "due_for_review") return true;
+                var rd = d.ReviewDate;
+                return rd >= now && rd <= reviewSoonUntil;
+            });
+
+            var expired = docs.Count(d =>
+            {
+                var key = StatusKey(d.Status);
+                if (key == "expired") return true;
+                return d.ReviewDate < now;
+            });
+
+            var health = new
+            {
+                approved = docs.Count(d => StatusKey(d.Status) == "approved"),
+                due_for_review = docs.Count(d => StatusKey(d.Status) == "due_for_review"),
+                expired = docs.Count(d => StatusKey(d.Status) == "expired"),
+                draft = docs.Count(d => StatusKey(d.Status) == "draft")
+            };
+
+            var accessLogsPeriod = await _context.DocumentAccessLogs
+                .Where(l => l.AccessedAt >= from)
+                .ToListAsync();
+
+            var qrLogsMonth = accessLogsPeriod.Where(l => l.AccessedAt >= monthStart && string.Equals(l.Source, "qr", StringComparison.OrdinalIgnoreCase)).ToList();
+            var qrScans = qrLogsMonth.Count;
+            var uniqueScannerKeys = qrLogsMonth
+                .Select(l => l.UserId.HasValue ? $"u:{l.UserId.Value}" : (!string.IsNullOrWhiteSpace(l.IpAddress) ? $"ip:{l.IpAddress}" : null))
+                .Where(x => x != null)
+                .Distinct()
+                .ToList();
+            var uniqueScanners = uniqueScannerKeys.Count;
+
+            var accessCounts = accessLogsPeriod
+                .GroupBy(l => l.DocumentId)
+                .Select(g => new { documentId = g.Key, count = g.Count() })
+                .OrderByDescending(x => x.count)
+                .Take(8)
+                .ToList();
+
+            var maxAccess = accessCounts.Count == 0 ? 0 : accessCounts.Max(x => x.count);
+            var mostAccessed = accessCounts
+                .Select((x, idx) =>
+                {
+                    var d = docs.FirstOrDefault(dd => dd.Id == x.documentId);
+                    return new
+                    {
+                        rank = idx + 1,
+                        id = x.documentId,
+                        doc_number = d?.DocumentNumber ?? $"DOC-{x.documentId}",
+                        title = d?.Title ?? "",
+                        count = x.count,
+                        pct = maxAccess == 0 ? 0 : (int)Math.Round((x.count * 100.0) / maxAccess)
+                    };
+                })
+                .ToList();
+
+            var reviewMonthsStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var reviewMonthsEnd = reviewMonthsStart.AddMonths(12);
+            var reviewCalendar = docs
+                .Where(d => d.ReviewDate >= reviewMonthsStart && d.ReviewDate < reviewMonthsEnd)
+                .GroupBy(d => new { d.ReviewDate.Year, d.ReviewDate.Month })
+                .Select(g => new { year = g.Key.Year, month = g.Key.Month, count = g.Count() })
+                .OrderBy(x => x.year).ThenBy(x => x.month)
+                .ToList();
+
+            var allSteps = await _context.DocumentApprovalWorkflows.ToListAsync();
+
+            double? ComputeApprovalDaysForDoc(int documentId)
+            {
+                var steps = allSteps.Where(s => s.DocumentId == documentId).ToList();
+                if (steps.Count == 0) return null;
+                var startAt = steps.Min(s => s.CreatedAt);
+                var endAt = steps
+                    .Where(s => s.ActionedAt.HasValue && string.Equals(s.Status, "approved", StringComparison.OrdinalIgnoreCase))
+                    .Select(s => s.ActionedAt!.Value)
+                    .DefaultIfEmpty()
+                    .Max();
+                if (endAt == default) return null;
+                return Math.Max(0, (endAt - startAt).TotalDays);
+            }
+
+            var approvalByDoc = docs
+                .Select(d => new { d.Id, d.Category, d.Owner, days = ComputeApprovalDaysForDoc(d.Id) })
+                .Where(x => x.days.HasValue)
+                .ToList();
+
+            var approvedInPeriod = approvalByDoc
+                .Where(x =>
+                {
+                    var steps = allSteps.Where(s => s.DocumentId == x.Id).ToList();
+                    var endAt = steps
+                        .Where(s => s.ActionedAt.HasValue && string.Equals(s.Status, "approved", StringComparison.OrdinalIgnoreCase))
+                        .Select(s => s.ActionedAt!.Value)
+                        .DefaultIfEmpty()
+                        .Max();
+                    return endAt != default && endAt >= from;
+                })
+                .Select(x => x.days!.Value)
+                .ToList();
+
+            var avgApprovalDays = approvedInPeriod.Count == 0 ? 0 : Math.Round(approvedInPeriod.Average(), 1);
+
+            var prevFrom = from.AddDays(-period);
+            var prevApproved = approvalByDoc
+                .Where(x =>
+                {
+                    var steps = allSteps.Where(s => s.DocumentId == x.Id).ToList();
+                    var endAt = steps
+                        .Where(s => s.ActionedAt.HasValue && string.Equals(s.Status, "approved", StringComparison.OrdinalIgnoreCase))
+                        .Select(s => s.ActionedAt!.Value)
+                        .DefaultIfEmpty()
+                        .Max();
+                    return endAt != default && endAt >= prevFrom && endAt < from;
+                })
+                .Select(x => x.days!.Value)
+                .ToList();
+
+            var prevAvg = prevApproved.Count == 0 ? 0 : Math.Round(prevApproved.Average(), 1);
+            var trendPct = prevAvg <= 0 ? 0 : Math.Round(((avgApprovalDays - prevAvg) / prevAvg) * 100.0, 1);
+            var trendClass = trendPct <= 0 ? "trend-up" : "trend-down";
+
+            var approvalTimeByCategory = approvalByDoc
+                .Where(x => !string.IsNullOrWhiteSpace(x.Category))
+                .GroupBy(x => x.Category)
+                .Select(g => new { category = g.Key, avg_days = Math.Round(g.Average(x => x.days!.Value), 1) })
+                .OrderByDescending(x => x.avg_days)
+                .ToList();
+
+            var docsByCategory = docs
+                .GroupBy(d => string.IsNullOrWhiteSpace(d.Category) ? "Uncategorized" : d.Category)
+                .Select(g => new { category = g.Key, count = g.Count() })
+                .OrderByDescending(x => x.count)
+                .ToList();
+
+            var requirements = await _context.DocumentAcknowledgmentRequirements.ToListAsync();
+            var acknowledgments = await _context.DocumentAcknowledgments.ToListAsync();
+            var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
+
+            var requiredTotal = 0;
+            var acknowledgedTotal = 0;
+
+            foreach (var doc in docs)
+            {
+                var reqs = requirements.Where(r => r.DocumentId == doc.Id).ToList();
+                if (reqs.Count == 0) continue;
+
+                var requiredUserIds = new HashSet<int>();
+                var roleRequirements = reqs
+                    .Where(r => !string.IsNullOrWhiteSpace(r.RequiredRole))
+                    .Select(r => r.RequiredRole!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                foreach (var role in roleRequirements)
+                {
+                    var roleKey = NormalizeRoleKey(role);
+                    if (roleKey == "document_owner")
+                    {
+                        foreach (var uid in users.Where(u => !string.IsNullOrWhiteSpace(u.Name) && !string.IsNullOrWhiteSpace(doc.Owner) && u.Name.Trim().Equals(doc.Owner.Trim(), StringComparison.OrdinalIgnoreCase)).Select(u => u.Id))
+                            requiredUserIds.Add(uid);
+                        continue;
+                    }
+                    foreach (var uid in users.Where(u => NormalizeRoleKey(u.Role) == roleKey).Select(u => u.Id))
+                        requiredUserIds.Add(uid);
+                }
+
+                foreach (var uid in reqs.Where(r => r.IndividualUserId.HasValue).Select(r => r.IndividualUserId!.Value))
+                    if (users.Any(u => u.Id == uid)) requiredUserIds.Add(uid);
+
+                if (requiredUserIds.Count == 0) continue;
+                requiredTotal += requiredUserIds.Count;
+
+                var rev = doc.Revision ?? "";
+                var docAcks = acknowledgments
+                    .Where(a => a.DocumentId == doc.Id && (a.DocumentRevision ?? "") == rev && requiredUserIds.Contains(a.UserId))
+                    .GroupBy(a => a.UserId)
+                    .Select(g => g.OrderByDescending(x => x.AcknowledgedAt).First())
+                    .ToList();
+                acknowledgedTotal += docAcks.Count;
+            }
+
+            var ackRate = requiredTotal == 0 ? 100 : (int)Math.Round((acknowledgedTotal * 100.0) / requiredTotal);
+
+            var criticalDocs = docs
+                .Select(d =>
+                {
+                    var days = (int)Math.Round((d.ReviewDate.Date - now.Date).TotalDays);
+                    var key = StatusKey(d.Status);
+                    var isExpired = key == "expired" || days < 0;
+                    var severity = isExpired ? "danger" : (days <= 7 ? "warning" : "info");
+                    return new
+                    {
+                        id = d.Id,
+                        doc_number = d.DocumentNumber,
+                        title = d.Title,
+                        category = d.Category,
+                        owner = d.Owner,
+                        status = d.Status,
+                        days,
+                        is_expired = isExpired,
+                        severity
+                    };
+                })
+                .Where(x => x.is_expired || x.days <= 7)
+                .OrderBy(x => x.is_expired ? 0 : 1)
+                .ThenBy(x => x.days)
+                .Take(20)
+                .ToList();
+
+            var ownerPerformance = docs
+                .GroupBy(d => string.IsNullOrWhiteSpace(d.Owner) ? "Unassigned" : d.Owner)
+                .Select(g =>
+                {
+                    var owner = g.Key;
+                    var total = g.Count();
+                    var overdue = g.Count(d => StatusKey(d.Status) == "expired" || d.ReviewDate < now);
+                    var onTimeRate = total == 0 ? 100 : (int)Math.Round(((total - overdue) * 100.0) / total);
+                    var ownerApproval = approvalByDoc.Where(a => string.Equals(a.Owner ?? "", owner ?? "", StringComparison.OrdinalIgnoreCase) && a.days.HasValue).Select(a => a.days!.Value).ToList();
+                    var avgDays = ownerApproval.Count == 0 ? 0 : Math.Round(ownerApproval.Average(), 1);
+                    var score = Math.Max(0, Math.Min(100, (int)Math.Round(100 - (overdue * 15) - (avgDays * 5))));
+                    var level = score >= 85 ? "good" : (score >= 65 ? "mid" : "low");
+                    return new
+                    {
+                        owner,
+                        total,
+                        overdue,
+                        on_time_rate = onTimeRate,
+                        avg_approval_days = avgDays,
+                        score,
+                        level
+                    };
+                })
+                .OrderByDescending(x => x.score)
+                .Take(30)
+                .ToList();
+
+            return Ok(new
+            {
+                kpis = new
+                {
+                    total_docs = totalDocs,
+                    new_this_month = newThisMonth,
+                    due_for_review = dueForReview,
+                    expired,
+                    ack_rate = ackRate,
+                    acknowledged = acknowledgedTotal,
+                    required = requiredTotal,
+                    avg_approval_days = avgApprovalDays,
+                    approval_trend_pct = trendPct,
+                    approval_trend_class = trendClass,
+                    qr_scans = qrScans,
+                    unique_scanners = uniqueScanners
+                },
+                health_distribution = health,
+                review_calendar = reviewCalendar,
+                most_accessed = mostAccessed,
+                approval_time_by_category = approvalTimeByCategory,
+                documents_by_category = docsByCategory,
+                critical_docs = criticalDocs,
+                owner_performance = ownerPerformance
+            });
+        }
+
         [HttpGet("{id}/relationships")]
         public async Task<IActionResult> GetDocumentRelationshipDetails(int id)
         {

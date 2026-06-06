@@ -1,6 +1,7 @@
 using AeroQMS.API.Data;
 using AeroQMS.API.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace AeroQMS.API.Data
 {
@@ -420,9 +421,10 @@ CREATE TABLE IF NOT EXISTS DocumentRelationships (
   CreatedById INTEGER NULL,
   CreatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );");
-
-                try { context.Database.ExecuteSqlRaw(@"ALTER TABLE DocumentRelationships ADD COLUMN Note TEXT NULL;"); } catch { }
-                try { context.Database.ExecuteSqlRaw(@"ALTER TABLE DocumentRelationships ADD COLUMN CreatedById INTEGER NULL;"); } catch { }
+                if (!ColumnExists(context, "DocumentRelationships", "Note"))
+                    context.Database.ExecuteSqlRaw(@"ALTER TABLE DocumentRelationships ADD COLUMN Note TEXT NULL;");
+                if (!ColumnExists(context, "DocumentRelationships", "CreatedById"))
+                    context.Database.ExecuteSqlRaw(@"ALTER TABLE DocumentRelationships ADD COLUMN CreatedById INTEGER NULL;");
 
                 context.Database.ExecuteSqlRaw(@"
 CREATE INDEX IF NOT EXISTS IX_DocumentRelationships_SourceDocumentId
@@ -446,6 +448,37 @@ ON DocumentRelationships (CreatedById);");
             }
             catch
             {
+            }
+        }
+
+        private static bool ColumnExists(AppDbContext context, string tableName, string columnName)
+        {
+            try
+            {
+                var conn = context.Database.GetDbConnection();
+                var wasOpen = conn.State == ConnectionState.Open;
+                if (!wasOpen) conn.Open();
+                try
+                {
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = $"PRAGMA table_info({tableName});";
+                    using var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        var name = reader["name"]?.ToString();
+                        if (string.Equals(name, columnName, StringComparison.OrdinalIgnoreCase))
+                            return true;
+                    }
+                    return false;
+                }
+                finally
+                {
+                    if (!wasOpen) conn.Close();
+                }
+            }
+            catch
+            {
+                return false;
             }
         }
     }
