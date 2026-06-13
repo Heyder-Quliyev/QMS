@@ -311,6 +311,43 @@ window.__myDocumentsDeps = {
   get refreshAckNavBadge() { return refreshAckNavBadge; }
 };
 
+window.__myReviewTasksDeps = {
+  get API_BASE_URL() { return API_BASE_URL; },
+  get escapeHtml() { return escapeHtml; },
+  get showPage() { return showPage; },
+  get viewDocument() { return viewDocument; }
+};
+
+window.__usersDeps = {
+  get API_BASE_URL() { return API_BASE_URL; },
+  get escapeHtml() { return escapeHtml; },
+  get isAdminUser() { return isAdminUser; },
+  get showToast() { return showToast; },
+  get closeModal() { return closeModal; },
+  get submitRecord() { return submitRecord; }
+};
+
+window.__mobileDocDeps = {
+  get API_BASE_URL() { return API_BASE_URL; },
+  get escapeHtml() { return escapeHtml; },
+  get getStatusBadge() { return getStatusBadge; },
+  get showPage() { return showPage; },
+  get showToast() { return showToast; },
+  get trackDocumentAccess() { return trackDocumentAccess; },
+  get buildDocumentShortUrl() { return buildDocumentShortUrl; }
+};
+
+window.__dashboardDeps = {
+  get API_BASE_URL() { return API_BASE_URL; },
+  get escapeHtml() { return escapeHtml; },
+  get viewCapa() { return window.viewCapa; }
+};
+
+window.__supplierManagementDeps = {
+  get API_BASE_URL() { return API_BASE_URL; },
+  get getStatusBadge() { return getStatusBadge; }
+};
+
 window.__settingsDeps = {
   get API_BASE_URL() { return API_BASE_URL; },
   get escapeHtml() { return escapeHtml; },
@@ -368,97 +405,6 @@ window.onpopstate = async () => {
   await showPage(page, null);
 };
 
-let capaStatusChart = null;
-
-// Dashboard
-async function loadCapaDashboard() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/dashboard/capa-stats`);
-    const data = await res.json();
-    
-    // Update summary cards
-    document.getElementById('capa-total-active').textContent = data.total_active;
-    document.getElementById('capa-overdue').textContent = data.overdue_count;
-    document.getElementById('capa-due-week').textContent = data.due_this_week;
-    document.getElementById('capa-pending-verify').textContent = data.pending_verification;
-    
-    // Update metrics
-    document.getElementById('capa-rate-30d').textContent = data.metrics.completion_rate + '%';
-    document.getElementById('capa-avg-time').textContent = data.metrics.avg_days_to_complete + 'd';
-    
-    // Render Chart
-    renderCapaStatusChart(data.status_distribution);
-    
-    // Render Priority Actions
-    const priorityList = document.getElementById('capa-top-priority');
-    if (data.top_priority.length === 0) {
-      priorityList.innerHTML = '<div style="font-size:11px; color:var(--text-muted); text-align:center;">No active actions.</div>';
-    } else {
-      const safePriorityClass = (p) => {
-        const s = (p || '').toString().toLowerCase();
-        return /^[a-z0-9_-]+$/.test(s) ? s : 'medium';
-      };
-      priorityList.innerHTML = data.top_priority.map(a => `
-        <div class="action-mini">
-          <span class="priority-dot priority-${safePriorityClass(a.priority)}"></span>
-          <div class="action-info">
-            <strong>${escapeHtml(String(a.title || ''))}</strong>
-            <small>Due ${escapeHtml(String(a.dueDateRelative || ''))}</small>
-          </div>
-          <button class="btn-sm" onclick="viewCapa('${escapeHtml(String(a.id || ''))}')" style="padding:2px 8px; font-size:10px;">View</button>
-        </div>
-      `).join('');
-    }
-  } catch (error) {
-    console.error('Failed to load CAPA dashboard:', error);
-  }
-}
-
-function renderCapaStatusChart(statusData) {
-  const ctx = document.getElementById('capa-status-chart').getContext('2d');
-  
-  if (capaStatusChart) {
-    capaStatusChart.destroy();
-  }
-  
-  capaStatusChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Not Started', 'In Progress', 'Pending Verification', 'Verified'],
-      datasets: [{
-        data: [
-          statusData.not_started,
-          statusData.in_progress,
-          statusData.pending_verification,
-          statusData.verified
-        ],
-        backgroundColor: ['#6b7280', '#facc15', '#3b82f6', '#10b981'],
-        borderWidth: 0,
-        hoverOffset: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '70%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { color: '#fff', font: { size: 10 }, padding: 15 }
-        }
-      }
-    }
-  });
-}
-
-// Auto-refresh every 5 minutes when on dashboard
-setInterval(() => {
-  const dashboardPage = document.getElementById('page-dashboard');
-  if (dashboardPage && dashboardPage.classList.contains('active')) {
-    loadCapaDashboard();
-  }
-}, 5 * 60 * 1000);
-
 function showToast(message, type = 'info') {
   console.log(`[Toast] ${type}: ${message}`);
   alert(message);
@@ -474,7 +420,6 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-async function fetchSuppliers() { const res = await fetch(`${API_BASE_URL}/suppliers`); const data = await res.json(); document.querySelector('#page-suppliers tbody').innerHTML = data.map(s => `<tr><td>${s.name}</td><td>${s.category}</td><td>${s.country}</td><td>${s.rating}</td><td>${s.lastAudit}</td><td><span class="badge badge-${getStatusBadge(s.status)}">${s.status}</span></td></tr>`).join(''); }
 function getStatusBadge(s) { const l = s.toLowerCase(); if(['approved','valid','complete','closed','completed','verified'].includes(l)) return 'green'; if(['in progress','due for review','expiring','under review','investigation','open','pending_verification'].includes(l)) return 'yellow'; if(['overdue','expired','suspended'].includes(l)) return 'red'; if(l==='scheduled') return 'blue'; return 'gray'; }
 function getSeverityBadge(s) { 
   if(!s) return 'gray';
@@ -987,174 +932,6 @@ async function copyUrl() {
   }
 }
 
-async function loadMobileDocView() {
-  const root = document.getElementById('mobile-doc-root');
-  const documentId = window.mobileDocId;
-  if (!root) return;
-  if (!documentId) {
-    root.textContent = '';
-    const msg = document.createElement('div');
-    msg.style.padding = '24px';
-    msg.style.color = 'var(--text-muted)';
-    msg.textContent = 'Document not found.';
-    root.appendChild(msg);
-    return;
-  }
-
-  root.textContent = '';
-  const loading = document.createElement('div');
-  loading.style.padding = '24px';
-  loading.style.color = 'var(--text-muted)';
-  loading.textContent = 'Loading...';
-  root.appendChild(loading);
-
-  try {
-    await trackDocumentAccess(documentId, 'qr');
-    const res = await fetch(`${API_BASE_URL}/documents/${documentId}?_=${Date.now()}`, { cache: 'no-store' });
-    const d = await res.json().catch(() => null);
-    if (!res.ok || !d) throw new Error('Failed');
-
-    const status = d.status || '';
-    root.textContent = '';
-
-    const topbar = document.createElement('div');
-    topbar.style.padding = '12px 14px';
-    topbar.style.borderBottom = '1px solid var(--border)';
-    topbar.style.display = 'flex';
-    topbar.style.alignItems = 'center';
-    topbar.style.justifyContent = 'space-between';
-    topbar.style.gap = '12px';
-
-    const info = document.createElement('div');
-    info.style.minWidth = '0';
-    const num = document.createElement('div');
-    num.style.fontWeight = '900';
-    num.style.fontSize = '14px';
-    num.style.whiteSpace = 'nowrap';
-    num.style.overflow = 'hidden';
-    num.style.textOverflow = 'ellipsis';
-    num.textContent = (d.documentNumber || '').toString();
-    const rev = document.createElement('div');
-    rev.style.color = 'var(--text-muted)';
-    rev.style.fontSize = '12px';
-    rev.textContent = (d.revision || '').toString();
-    info.appendChild(num);
-    info.appendChild(rev);
-
-    const badge = document.createElement('span');
-    badge.className = `badge badge-${getStatusBadge(status)}`;
-    badge.textContent = (status || '').toString();
-
-    topbar.appendChild(info);
-    topbar.appendChild(badge);
-
-    const body = document.createElement('div');
-    body.style.padding = '12px 14px';
-
-    const title = document.createElement('div');
-    title.style.fontWeight = '900';
-    title.style.marginBottom = '8px';
-    title.textContent = (d.title || '').toString();
-
-    const eff = document.createElement('div');
-    eff.style.color = 'var(--text-muted)';
-    eff.style.fontSize = '12px';
-    eff.style.marginBottom = '12px';
-    eff.textContent = `Effective: ${d.effectiveDate ? new Date(d.effectiveDate).toLocaleDateString() : '-'}`;
-
-    const frameWrap = document.createElement('div');
-    frameWrap.style.border = '1px solid var(--border)';
-    frameWrap.style.borderRadius = '12px';
-    frameWrap.style.overflow = 'hidden';
-    frameWrap.style.background = 'rgba(255,255,255,0.02)';
-
-    const iframe = document.createElement('iframe');
-    iframe.src = `${API_BASE_URL}/documents/view/${documentId}`;
-    iframe.style.width = '100%';
-    iframe.style.height = '65vh';
-    iframe.style.border = '0';
-    frameWrap.appendChild(iframe);
-
-    body.appendChild(title);
-    body.appendChild(eff);
-    body.appendChild(frameWrap);
-
-    const actions = document.createElement('div');
-    actions.style.position = 'sticky';
-    actions.style.bottom = '0';
-    actions.style.background = 'rgba(10,22,40,0.95)';
-    actions.style.borderTop = '1px solid var(--border)';
-    actions.style.padding = '10px 14px';
-    actions.style.display = 'flex';
-    actions.style.gap = '10px';
-
-    const btnIssue = document.createElement('button');
-    btnIssue.type = 'button';
-    btnIssue.className = 'btn btn-ghost';
-    btnIssue.style.flex = '1';
-    btnIssue.style.justifyContent = 'center';
-    btnIssue.textContent = 'Report Issue';
-    btnIssue.addEventListener('click', () => reportIssue(documentId));
-
-    const btnDownload = document.createElement('button');
-    btnDownload.type = 'button';
-    btnDownload.className = 'btn btn-ghost';
-    btnDownload.style.flex = '1';
-    btnDownload.style.justifyContent = 'center';
-    btnDownload.textContent = 'Download';
-    btnDownload.addEventListener('click', () => downloadDoc(documentId));
-
-    const btnShare = document.createElement('button');
-    btnShare.type = 'button';
-    btnShare.className = 'btn btn-primary';
-    btnShare.style.flex = '1';
-    btnShare.style.justifyContent = 'center';
-    btnShare.textContent = 'Share';
-    btnShare.addEventListener('click', () => shareDoc(documentId));
-
-    actions.appendChild(btnIssue);
-    actions.appendChild(btnDownload);
-    actions.appendChild(btnShare);
-
-    root.appendChild(topbar);
-    root.appendChild(body);
-    root.appendChild(actions);
-  } catch {
-    root.textContent = '';
-    const msg = document.createElement('div');
-    msg.style.padding = '24px';
-    msg.style.color = 'var(--accent3)';
-    msg.textContent = 'Error loading document.';
-    root.appendChild(msg);
-  }
-}
-
-async function reportIssue(documentId) {
-  await showPage('ncr', null);
-  showToast(`Create an NCR for DOC ID ${documentId}`, 'success');
-}
-
-function downloadDoc(documentId) {
-  window.open(`${API_BASE_URL}/documents/download/${documentId}`, '_blank');
-}
-
-async function shareDoc(documentId) {
-  const url = buildDocumentShortUrl(documentId);
-  try {
-    if (navigator.share) {
-      await navigator.share({ title: 'Document', url });
-      return;
-    }
-  } catch {
-  }
-  try {
-    await navigator.clipboard.writeText(url);
-    showToast('Copied', 'success');
-  } catch {
-    showToast('Copy failed', 'error');
-  }
-}
-
 function formatDocumentVersionLabel(v) {
   const rev = v?.revision ? `Rev. ${v.revision}` : 'Revision';
   const suffix = v?.is_current ? ' (Current)' : (v?.snapshot_at ? ` (${new Date(v.snapshot_at).toLocaleDateString()})` : '');
@@ -1354,48 +1131,6 @@ async function refreshAckNavBadge() {
   }
 }
 
-async function loadMyReviewTasks() {
-  const tbody = document.getElementById('my-review-tasks-body');
-  if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);">Loading...</td></tr>';
-  try {
-    const res = await fetch(`${API_BASE_URL}/reviews/my-tasks?_=${Date.now()}`, { cache: 'no-store' });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(data?.error || 'Failed');
-    const tasks = data?.tasks || [];
-    if (!tasks || tasks.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);">No review tasks.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = tasks.map(t => {
-      const due = parseInt(t.due_in_days, 10);
-      const badge = due < 0 ? 'red' : (due <= 7 ? 'orange' : 'yellow');
-      const dueLabel = isNaN(due) ? '-' : (due < 0 ? `${Math.abs(due)} overdue` : `${due} days`);
-      return `
-        <tr>
-          <td>
-            <div style="font-weight:800;">${escapeHtml(t.document_number || '')}</div>
-            <div style="color:var(--text-muted); font-size:12px;">${escapeHtml(t.title || '')}</div>
-          </td>
-          <td>${escapeHtml(t.category || '')}</td>
-          <td>${escapeHtml(t.owner || '')}</td>
-          <td>${t.review_date ? new Date(t.review_date).toLocaleDateString() : '-'}</td>
-          <td>${escapeHtml(dueLabel)}</td>
-          <td><span class="badge badge-${badge}">${escapeHtml(t.urgency || '')}</span></td>
-          <td><button type="button" class="btn btn-primary" style="padding:6px 10px; font-size:12px;" onclick="startReview(${t.id})">Start Review</button></td>
-        </tr>
-      `;
-    }).join('');
-  } catch {
-    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--accent3);">Error loading review tasks.</td></tr>';
-  }
-}
-
-async function startReview(documentId) {
-  if (!documentId) return;
-  await showPage('documents', null);
-  await viewDocument(documentId);
-}
 
 async function loadDocumentAcknowledgment(documentId) {
   const el = document.getElementById('document-ack-content');
@@ -2499,274 +2234,6 @@ function handleEditStepRoleChange(value) {
   if (value !== 'custom') {
     const input = document.getElementById('edit-custom-role-input');
     if (input) input.value = '';
-  }
-}
-
-async function populateWorkflowUsers(selectId, selectedUserId) {
-  const sel = document.getElementById(selectId);
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Anyone with the role above</option>';
-  try {
-    const res = await fetch(`${API_BASE_URL}/users/lookup?_=${Date.now()}`, { cache: 'no-store' });
-    if (!res.ok) return;
-    const users = await res.json();
-    (users || []).forEach(u => {
-      const opt = document.createElement('option');
-      opt.value = String(u.id);
-      opt.textContent = `${u.name}`;
-      sel.appendChild(opt);
-    });
-    if (selectedUserId != null && selectedUserId !== '') sel.value = String(selectedUserId);
-  } catch {}
-}
-
-async function fetchUsersAdmin() {
-  if (!isAdminUser()) {
-    const tbody = document.getElementById('users-table-body');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:16px; color:var(--text-muted); text-align:center;">403 — Admin only</td></tr>';
-    return;
-  }
-
-  const tbody = document.getElementById('users-table-body');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:16px; color:var(--text-muted); text-align:center;">Loading users...</td></tr>';
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/users?_=${Date.now()}`, { cache: 'no-store' });
-    if (!res.ok) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:16px; color:var(--accent3); text-align:center;">Error loading users</td></tr>';
-      return;
-    }
-    const users = await res.json();
-    usersAdminCache = users || [];
-    renderUsersTable(usersAdminCache);
-  } catch {
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:16px; color:var(--accent3); text-align:center;">Error loading users</td></tr>';
-  }
-}
-
-function renderUsersTable(users) {
-  const tbody = document.getElementById('users-table-body');
-  if (!tbody) return;
-  if (!users || users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="padding:16px; color:var(--text-muted); text-align:center;">No users found</td></tr>';
-    return;
-  }
-
-  const formatDt = (v) => {
-    if (!v) return '-';
-    const d = new Date(v);
-    return isNaN(d.getTime()) ? '-' : d.toLocaleString();
-  };
-
-  tbody.innerHTML = users.map(u => `
-    <tr>
-      <td>${escapeHtml(u.name || '')}</td>
-      <td>${escapeHtml(u.email || '')}</td>
-      <td><span class="badge badge-blue">${escapeHtml(u.role || '')}</span></td>
-      <td>${u.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-gray">Inactive</span>'}</td>
-      <td>${escapeHtml(formatDt(u.last_login))}</td>
-      <td>
-        <div class="actions-cell">
-          <button class="btn-icon" title="Edit" onclick="openEditUserModal(${u.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-          ${u.is_active ? `<button class="btn-icon" title="Deactivate" onclick="deactivateUser(${u.id})" style="border-color: rgba(255,107,53,0.25); color: var(--accent3);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></button>` : ''}
-          <button class="btn-icon" title="Reset Password" onclick="openResetPasswordModal(${u.id})" style="border-color: rgba(59,139,255,0.25); color: var(--accent2);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M20 9A8 8 0 0 0 6.34 6.34L4 10"/><path d="M4 14a8 8 0 0 0 13.66 3.66L20 14"/></svg></button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-
-let usersAdminCache = [];
-async function refreshUsersAdminCache() {
-  const res = await fetch(`${API_BASE_URL}/users?_=${Date.now()}`, { cache: 'no-store' });
-  if (!res.ok) return [];
-  const users = await res.json();
-  usersAdminCache = users || [];
-  return usersAdminCache;
-}
-
-function resetRecordModalForCustomForm() {
-  const fields = document.getElementById('form-fields');
-  const id = document.getElementById('form-id');
-  const form = document.getElementById('record-form');
-  const btn = document.querySelector('#record-form button[type="submit"]');
-  if (id) id.value = '';
-  if (fields) fields.innerHTML = '';
-  if (btn) btn.style.display = 'inline-flex';
-  if (form) form.onsubmit = submitRecord;
-}
-
-function openAddUserModal() {
-  if (!isAdminUser()) return;
-  resetRecordModalForCustomForm();
-  document.getElementById('modal-title').textContent = 'Add User';
-  document.getElementById('form-fields').innerHTML = `
-    <div class="form-group"><label class="form-label required">Full Name</label><input class="form-input" id="user-name" type="text"></div>
-    <div class="form-group"><label class="form-label required">Email</label><input class="form-input" id="user-email" type="email"></div>
-    <div class="form-group"><label class="form-label required">Role</label>
-      <select class="form-input" id="user-role">
-        <option value="Admin">Admin</option>
-        <option value="Quality Manager">Quality Manager</option>
-        <option value="Document Owner">Document Owner</option>
-        <option value="Department Head">Department Head</option>
-      </select>
-    </div>
-    <div class="form-group"><label class="form-label required">Temporary Password</label><input class="form-input" id="user-password" type="password"></div>
-    <label class="checkbox-label" style="margin-top:6px;"><input type="checkbox" id="user-force-change" checked><span>Force password change on first login</span></label>
-  `;
-  const saveBtn = document.querySelector('#record-form button[type="submit"]');
-  if (saveBtn) saveBtn.textContent = 'Create User';
-  const form = document.getElementById('record-form');
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    await submitCreateUser();
-  };
-  document.getElementById('modal-overlay').classList.add('active');
-}
-
-async function submitCreateUser() {
-  const name = (document.getElementById('user-name')?.value || '').trim();
-  const email = (document.getElementById('user-email')?.value || '').trim();
-  const role = document.getElementById('user-role')?.value || '';
-  const password = document.getElementById('user-password')?.value || '';
-  const forcePasswordChange = !!document.getElementById('user-force-change')?.checked;
-
-  if (!name || !email || !role || !password) {
-    showToast('All fields are required', 'error');
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/users`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ name, email, password, role, forcePasswordChange })
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      showToast(data?.error || 'Failed to create user', 'error');
-      return;
-    }
-    showToast('User created', 'success');
-    closeModal();
-    await fetchUsersAdmin();
-  } catch {
-    showToast('Failed to create user', 'error');
-  }
-}
-
-async function openEditUserModal(id) {
-  if (!isAdminUser()) return;
-  if (usersAdminCache.length === 0) await refreshUsersAdminCache();
-  const u = usersAdminCache.find(x => x.id === id);
-  if (!u) { showToast('User not found', 'error'); return; }
-
-  resetRecordModalForCustomForm();
-  document.getElementById('modal-title').textContent = 'Edit User';
-  document.getElementById('form-fields').innerHTML = `
-    <div class="form-group"><label class="form-label required">Full Name</label><input class="form-input" id="edit-user-name" type="text" value="${escapeHtml(u.name || '')}"></div>
-    <div class="form-group"><label class="form-label required">Email</label><input class="form-input" id="edit-user-email" type="email" value="${escapeHtml(u.email || '')}"></div>
-    <div class="form-group"><label class="form-label required">Role</label>
-      <select class="form-input" id="edit-user-role">
-        <option value="Admin" ${u.role === 'Admin' ? 'selected' : ''}>Admin</option>
-        <option value="Quality Manager" ${u.role === 'Quality Manager' ? 'selected' : ''}>Quality Manager</option>
-        <option value="Document Owner" ${u.role === 'Document Owner' ? 'selected' : ''}>Document Owner</option>
-        <option value="Department Head" ${u.role === 'Department Head' ? 'selected' : ''}>Department Head</option>
-      </select>
-    </div>
-  `;
-  const saveBtn = document.querySelector('#record-form button[type="submit"]');
-  if (saveBtn) saveBtn.textContent = 'Save';
-  const form = document.getElementById('record-form');
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    await submitUpdateUser(id);
-  };
-  document.getElementById('modal-overlay').classList.add('active');
-}
-
-async function submitUpdateUser(id) {
-  const name = (document.getElementById('edit-user-name')?.value || '').trim();
-  const email = (document.getElementById('edit-user-email')?.value || '').trim();
-  const role = document.getElementById('edit-user-role')?.value || '';
-  if (!name || !email || !role) {
-    showToast('All fields are required', 'error');
-    return;
-  }
-  try {
-    const res = await fetch(`${API_BASE_URL}/users/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ name, email, role })
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      showToast(data?.error || 'Failed to update user', 'error');
-      return;
-    }
-    showToast('User updated', 'success');
-    closeModal();
-    await fetchUsersAdmin();
-  } catch {
-    showToast('Failed to update user', 'error');
-  }
-}
-
-async function deactivateUser(id) {
-  if (!isAdminUser()) return;
-  if (!confirm('Deactivate this user?')) return;
-  try {
-    const res = await fetch(`${API_BASE_URL}/users/${id}/deactivate`, { method: 'POST', headers: { 'Accept': 'application/json' } });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      showToast(data?.error || 'Failed to deactivate user', 'error');
-      return;
-    }
-    showToast('User deactivated', 'success');
-    await fetchUsersAdmin();
-  } catch {
-    showToast('Failed to deactivate user', 'error');
-  }
-}
-
-function openResetPasswordModal(id) {
-  if (!isAdminUser()) return;
-  resetRecordModalForCustomForm();
-  document.getElementById('modal-title').textContent = 'Reset Password';
-  document.getElementById('form-fields').innerHTML = `
-    <div class="form-group"><label class="form-label required">New Temporary Password</label><input class="form-input" id="reset-pass" type="password"></div>
-    <label class="checkbox-label" style="margin-top:6px;"><input type="checkbox" id="reset-force-change" checked><span>Force password change on next login</span></label>
-  `;
-  const saveBtn = document.querySelector('#record-form button[type="submit"]');
-  if (saveBtn) saveBtn.textContent = 'Reset';
-  const form = document.getElementById('record-form');
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    await submitResetPassword(id);
-  };
-  document.getElementById('modal-overlay').classList.add('active');
-}
-
-async function submitResetPassword(id) {
-  const password = document.getElementById('reset-pass')?.value || '';
-  const forcePasswordChange = !!document.getElementById('reset-force-change')?.checked;
-  if (!password) { showToast('Password is required', 'error'); return; }
-  try {
-    const res = await fetch(`${API_BASE_URL}/users/${id}/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ password, forcePasswordChange })
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      showToast(data?.error || 'Failed to reset password', 'error');
-      return;
-    }
-    showToast('Password reset', 'success');
-    closeModal();
-    await fetchUsersAdmin();
-  } catch {
-    showToast('Failed to reset password', 'error');
   }
 }
 
