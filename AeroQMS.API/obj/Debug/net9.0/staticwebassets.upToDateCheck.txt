@@ -1,4 +1,36 @@
 wwwroot\capa-form.html
+wwwroot\index.backup.html
+wwwroot\css\styles.css
+wwwroot\script\capaAnalytics.js
+wwwroot\script\documentAnalytics.js
+wwwroot\script\documentRelationshipMap.js
 wwwroot\index.html
+wwwroot\script\trainingRecords.js
+wwwroot\script\audits.js
+wwwroot\script\documents.js
+wwwroot\script\checkLists.js
+wwwroot\script\myDocuments.js
+wwwroot\script\capaManagement.js
+wwwroot\script\settings.js
+wwwroot\script\nonConformanceReports.js
+wwwroot\script\myActions.js
+wwwroot\script\riskManagement.js
+wwwroot\script\script.js
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\capa-form.html
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\index.backup.html
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\css\styles.css
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\capaAnalytics.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentAnalytics.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentRelationshipMap.js
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\index.html
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\trainingRecords.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\audits.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documents.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\checkLists.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\myDocuments.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\capaManagement.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\settings.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\nonConformanceReports.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\myActions.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\riskManagement.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\script.js
