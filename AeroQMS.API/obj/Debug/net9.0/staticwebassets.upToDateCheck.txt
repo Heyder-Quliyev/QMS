@@ -1,58 +1,85 @@
+wwwroot\portal\dist\index.html
+wwwroot\script\users.js
+wwwroot\script\trainingRecords.js
+wwwroot\script\audits.js
+wwwroot\script\settings.js
+wwwroot\script\script.js
+wwwroot\script\riskManagement.js
 wwwroot\capa-form.html
-wwwroot\index.backup.html
-wwwroot\css\styles.css
-wwwroot\script\dashboard.js
+wwwroot\script\myReviewTasks.js
 wwwroot\script\myDocuments.js
 wwwroot\script\myActions.js
-wwwroot\script\trainingRecords.js
 wwwroot\script\mobileDoc.js
-wwwroot\script\settings.js
-wwwroot\script\documentHistory.js
-wwwroot\script\nonConformanceReports.js
-wwwroot\script\documentAnalytics.js
-wwwroot\script\riskManagement.js
-wwwroot\script\audits.js
-wwwroot\script\checkLists.js
-wwwroot\script\documentRelationshipMap.js
-wwwroot\script\capaManagement.js
-wwwroot\script\capaAnalytics.js
-wwwroot\script\myReviewTasks.js
-wwwroot\script\users.js
-wwwroot\script\utils.js
-wwwroot\index.html
-wwwroot\script\supplierManagement.js
-wwwroot\script\script.js
-wwwroot\script\documentQr.js
 wwwroot\script\documents.js
 wwwroot\script\documentRelationshipsTab.js
-wwwroot\script\documentAcknowledgment.js
+wwwroot\script\documentRelationshipMap.js
+wwwroot\script\documentQr.js
+wwwroot\script\documentHistory.js
 wwwroot\script\documentApproval.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\capa-form.html
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\index.backup.html
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\css\styles.css
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\dashboard.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\myDocuments.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\myActions.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\trainingRecords.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\mobileDoc.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\settings.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentHistory.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\nonConformanceReports.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentAnalytics.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\riskManagement.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\audits.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\checkLists.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentRelationshipMap.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\capaManagement.js
+wwwroot\script\documentAnalytics.js
+wwwroot\script\documentAcknowledgment.js
+wwwroot\script\dashboard.js
+wwwroot\script\checkLists.js
+wwwroot\index.html
+wwwroot\script\capaAnalytics.js
+wwwroot\script\supplierManagement.js
+wwwroot\portal\vite.config.ts
+wwwroot\portal\tsconfig.node.json
+wwwroot\portal\tsconfig.json
+wwwroot\portal\src\types\index.ts
+wwwroot\portal\src\services\portalApi.ts
+wwwroot\portal\src\main.tsx
+wwwroot\portal\src\index.css
+wwwroot\portal\src\components\PortalView.tsx
+wwwroot\portal\src\components\ExternalPortal.tsx
+wwwroot\portal\src\components\AdminPortal.tsx
+wwwroot\portal\src\App.tsx
+wwwroot\portal\package.json
+wwwroot\portal\package-lock.json
+wwwroot\portal\index.html
+wwwroot\script\utils.js
+wwwroot\portal\dist\assets\index-D39v758j.js
+wwwroot\portal\dist\assets\index-CFLKglQi.css
+wwwroot\portal\.gitignore
+wwwroot\script\capaManagement.js
+wwwroot\index.backup.html
+wwwroot\css\styles.css
+wwwroot\script\nonConformanceReports.js
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\capaAnalytics.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\myReviewTasks.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\users.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\utils.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\supplierManagement.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentQr.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documents.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\index.html
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\portal\dist\index.html
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\script.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\portal\src\index.css
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\audits.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\mobileDoc.js
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentRelationshipsTab.js
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentAcknowledgment.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\portal\package.json
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\supplierManagement.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\users.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\portal\tsconfig.json
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\settings.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\myReviewTasks.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\myActions.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\css\styles.css
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documents.js
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentApproval.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\utils.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\index.backup.html
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\dashboard.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentHistory.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentRelationshipMap.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\nonConformanceReports.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\capaManagement.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\trainingRecords.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\portal\tsconfig.node.json
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\index.html
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\myDocuments.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentAcknowledgment.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\portal\dist\assets\index-CFLKglQi.css
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\checkLists.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\capa-form.html
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentAnalytics.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\documentQr.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\portal\dist\assets\index-D39v758j.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\portal\package-lock.json
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\script\riskManagement.js
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\wwwroot\portal\index.html

@@ -1,35 +1,56 @@
 using AeroQMS.API.Models;
-using System.Text;
+using MailKit.Net.Smtp;
+using MimeKit;
+using MimeKit.Text;
+using Microsoft.Extensions.Options;
 
 namespace AeroQMS.API.Services
 {
     public class EmailService : IEmailService
     {
         private readonly ILogger<EmailService> _logger;
+        private readonly EmailSettings _emailSettings;
         private readonly string _logPath;
 
-        public EmailService(ILogger<EmailService> logger, IWebHostEnvironment env)
+        public EmailService(ILogger<EmailService> logger, IOptions<EmailSettings> emailSettings, IWebHostEnvironment env)
         {
             _logger = logger;
+            _emailSettings = emailSettings.Value;
             _logPath = Path.Combine(env.ContentRootPath, "Logs", "Emails");
             if (!Directory.Exists(_logPath)) Directory.CreateDirectory(_logPath);
         }
 
         private async Task SendEmail(string to, string subject, string body)
         {
-            // In a real app, use SmtpClient or a service like SendGrid
-            // For this project, we log to a file and console
-            var fileName = $"Email_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString().Substring(0, 8)}.html";
-            var filePath = Path.Combine(_logPath, fileName);
+            try
+            {
+                // Create email
+                var email = new MimeMessage();
+                email.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+                email.To.Add(MailboxAddress.Parse(to));
+                email.Subject = subject;
+                email.Body = new TextPart(TextFormat.Html) { Text = body };
 
-            var content = new StringBuilder();
-            content.AppendLine($"To: {to}");
-            content.AppendLine($"Subject: {subject}");
-            content.AppendLine("<hr/>");
-            content.AppendLine(body);
+                // Send via SMTP
+                using var smtp = new SmtpClient();
+                await smtp.ConnectAsync(_emailSettings.SmtpHost, _emailSettings.SmtpPort, MailKit.Security.SecureSocketOptions.StartTls);
+                await smtp.AuthenticateAsync(_emailSettings.Username, _emailSettings.Password);
+                await smtp.SendAsync(email);
+                await smtp.DisconnectAsync(true);
 
-            await File.WriteAllTextAsync(filePath, content.ToString());
-            _logger.LogInformation($"[EMAIL SENT] To: {to}, Subject: {subject}. Log: {filePath}");
+                _logger.LogInformation($"[EMAIL SENT] To: {to}, Subject: {subject}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send email to {Email}", to);
+                
+                // Also log to file for debug
+                var fileName = $"Email_Failure_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString().Substring(0, 8)}.txt";
+                var filePath = Path.Combine(_logPath, fileName);
+                await File.WriteAllTextAsync(filePath, $"To: {to}\nSubject: {subject}\nError: {ex.Message}\nStackTrace: {ex.StackTrace}");
+                
+                throw;
+            }
         }
 
         public async Task SendNewCAPAEmail(CapaAction capa)
@@ -259,6 +280,26 @@ namespace AeroQMS.API.Services
                 </div>";
 
             await SendEmail(manager.Email, subject, body);
+        }
+
+        public async Task SendPortalInviteEmail(string toEmail, string userName, string companyName, string portalLink)
+        {
+            var subject = "You've been invited to view documents on AeroQMS Portal";
+            var body = $@"
+                <div style='font-family: sans-serif; max-width: 600px;'>
+                    <h2>You're invited!</h2>
+                    <p>Hi <strong>{userName}</strong>,</p>
+                    <p><strong>{companyName}</strong> has invited you to access shared documents via the AeroQMS Portal.</p>
+                    <div style='background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;'>
+                        <p style='margin:0;'>Click the button below to access the portal:</p>
+                    </div>
+                    <a href='{portalLink}' style='display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;'>Access Portal</a>
+                    <p style='color: #6b7280; font-size: 12px; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 15px;'>
+                        This is an automated notification from AeroQMS.
+                    </p>
+                </div>";
+
+            await SendEmail(toEmail, subject, body);
         }
     }
 }

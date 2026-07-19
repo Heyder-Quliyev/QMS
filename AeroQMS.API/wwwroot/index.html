@@ -144,6 +144,10 @@
         Risk Management
       </div>
       <div style="margin-top: 40px; padding: 0 16px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px;">Admin</div>
+      <div class="nav-item" onclick="window.location.href='/portal/admin'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Portal Admin
+      </div>
       <div class="nav-item" onclick="showPage('suppliers', this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
         Suppliers
@@ -796,7 +800,7 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="text" id="capa-search" placeholder="Search CAPAs..." oninput="filterCapas()" style="font-size:12px;">
               </div>
-              <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px; height: 32px;" onclick="window.location.href='capa-form.html'">+ New CAPA</button>
+              <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px; height: 32px;" onclick="window.location.href='capa-form.html' + (typeof currentNcrIdForCapa !== 'undefined' && currentNcrIdForCapa ? '?ncrId=' + currentNcrIdForCapa : '')">+ New CAPA</button>
             </div>
           </div>
           <div class="panel-body" style="padding:0; overflow-x: auto;">

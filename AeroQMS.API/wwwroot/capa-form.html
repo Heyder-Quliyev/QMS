@@ -666,12 +666,68 @@
         let fmeaRowCount = 2;
         let paretoRowCount = 4;
         let scatterRowCount = 3;
+        let selectedNcrId = null;
+        let selectedNcr = null;
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('todayDate').value = today;
             const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
             document.getElementById('dueDateInput').value = in30Days;
+
+            // Read ncrId from URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const ncrIdFromUrl = urlParams.get('ncrId');
+      if (ncrIdFromUrl) {
+        selectedNcrId = parseInt(ncrIdFromUrl, 10);
+        console.log('[DEBUG capa-form] Got ncrId from URL:', selectedNcrId, 'type:', typeof selectedNcrId);
+                try {
+                    // Fetch NCR details
+                    const res = await fetch(`${API_BASE_URL}/ncr/${selectedNcrId}`);
+                    if (res.ok) {
+                        selectedNcr = await res.json();
+                        console.log('[DEBUG capa-form] Fetched NCR:', selectedNcr);
+                        
+                        // Auto-fill fields and make them readonly
+                        const ncrReferenceInput = document.querySelector('[name="ncrReference"]');
+                        const ncrTitleInput = document.querySelector('[name="ncrTitle"]');
+                        const ncrDescriptionInput = document.querySelector('[name="ncrDescription"]');
+                        const occurrenceDateInput = document.querySelector('[name="occurrenceDate"]');
+                        const locationInput = document.querySelector('[name="location"]');
+                        const reportedByNameInput = document.querySelector('[name="reportedByName"]');
+
+                        if (ncrReferenceInput) {
+                            ncrReferenceInput.value = selectedNcr.ncrNumber || '';
+                            ncrReferenceInput.readOnly = true;
+                            ncrReferenceInput.style.background = 'rgba(255,255,255,0.05)';
+                            ncrReferenceInput.style.color = 'var(--text-muted)';
+                        }
+                        if (ncrTitleInput) {
+                            ncrTitleInput.value = selectedNcr.title || '';
+                            ncrTitleInput.readOnly = true;
+                            ncrTitleInput.style.background = 'rgba(255,255,255,0.05)';
+                            ncrTitleInput.style.color = 'var(--text-muted)';
+                        }
+                        if (ncrDescriptionInput) {
+                            ncrDescriptionInput.value = selectedNcr.description || '';
+                            ncrDescriptionInput.readOnly = true;
+                            ncrDescriptionInput.style.background = 'rgba(255,255,255,0.05)';
+                            ncrDescriptionInput.style.color = 'var(--text-muted)';
+                        }
+                        if (occurrenceDateInput && selectedNcr.date) {
+                            occurrenceDateInput.value = new Date(selectedNcr.date).toISOString().split('T')[0];
+                        }
+                        if (locationInput) {
+                            locationInput.value = selectedNcr.area || '';
+                        }
+                        if (reportedByNameInput) {
+                            reportedByNameInput.value = selectedNcr.raisedBy || '';
+                        }
+                    }
+                } catch (err) {
+                    console.error('[DEBUG capa-form] Error fetching NCR:', err);
+                }
+            }
         });
 
         function goBack() {
@@ -930,6 +986,8 @@
             const form = document.getElementById('capa-form');
             const formData = new FormData(form);
             
+            console.log('[DEBUG capa-form] Submitting CAPA with selectedNcrId:', selectedNcrId);
+            
             const capaData = {
                 Id: crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-0000-0000-000000000000',
                 Title: formData.get('title'),
@@ -952,8 +1010,8 @@
                 priority: formData.get('priority') || 'medium',
                 Status: formData.get('status') || 'not_started',
                 status: formData.get('status') || 'not_started',
-                NCRId: null,
-                ncrId: null,
+                NCRId: selectedNcrId,
+                ncrId: selectedNcrId,
                 CreatedAt: new Date().toISOString(),
                 createdAt: new Date().toISOString(),
                 UpdatedAt: new Date().toISOString(),

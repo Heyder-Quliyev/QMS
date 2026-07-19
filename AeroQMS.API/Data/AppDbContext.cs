@@ -31,6 +31,18 @@ namespace AeroQMS.API.Data
         public DbSet<CapaAttachment> CapaAttachments { get; set; }
         public DbSet<CapaHistory> CapaHistories { get; set; }
         public DbSet<NCRHistory> NCRHistories { get; set; }
+        // Checklist DbSets
+        public DbSet<ChecklistTemplate> ChecklistTemplates { get; set; }
+        public DbSet<ChecklistTemplateItem> ChecklistTemplateItems { get; set; }
+        public DbSet<ChecklistInstance> ChecklistInstances { get; set; }
+        public DbSet<ChecklistInstanceItem> ChecklistInstanceItems { get; set; }
+        public DbSet<ChecklistAuditLog> ChecklistAuditLogs { get; set; }
+        // External Portal DbSets
+        public DbSet<PortalGroup> PortalGroups { get; set; }
+        public DbSet<PortalDocument> PortalDocuments { get; set; }
+        public DbSet<PortalUser> PortalUsers { get; set; }
+        public DbSet<PortalAccessLog> PortalAccessLogs { get; set; }
+        public DbSet<PortalFeedback> PortalFeedbacks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -189,6 +201,148 @@ namespace AeroQMS.API.Data
                 entity.HasOne<NonConformance>()
                       .WithMany()
                       .HasForeignKey(e => e.NCRId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Portal Group
+            modelBuilder.Entity<PortalGroup>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Slug).IsRequired().HasMaxLength(100);
+                entity.HasIndex(e => e.Slug).IsUnique();
+                entity.HasIndex(e => e.CompanyId);
+            });
+
+            // Portal Document
+            modelBuilder.Entity<PortalDocument>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.PortalGroupId);
+                entity.HasIndex(e => e.DocumentId);
+                entity.HasIndex(e => new { e.PortalGroupId, e.DocumentId }).IsUnique();
+                entity.HasOne(e => e.PortalGroup)
+                      .WithMany(g => g.PortalDocuments)
+                      .HasForeignKey(e => e.PortalGroupId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Document)
+                      .WithMany()
+                      .HasForeignKey(e => e.DocumentId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Portal User
+            modelBuilder.Entity<PortalUser>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.AccessToken).IsRequired();
+                entity.HasIndex(e => e.PortalGroupId);
+                entity.HasIndex(e => e.AccessToken).IsUnique();
+                entity.HasOne(e => e.PortalGroup)
+                      .WithMany(g => g.PortalUsers)
+                      .HasForeignKey(e => e.PortalGroupId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Portal Access Log
+            modelBuilder.Entity<PortalAccessLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Action).IsRequired().HasMaxLength(20);
+                entity.HasIndex(e => e.PortalUserId);
+                entity.HasIndex(e => e.DocumentId);
+                entity.HasIndex(e => e.AccessedAt).IsDescending();
+                entity.HasOne(e => e.PortalUser)
+                      .WithMany(u => u.AccessLogs)
+                      .HasForeignKey(e => e.PortalUserId)
+                      .IsRequired(false) // Make it optional for public access
+                      .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(e => e.Document)
+                      .WithMany()
+                      .HasForeignKey(e => e.DocumentId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Portal Feedback
+            modelBuilder.Entity<PortalFeedback>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Message).IsRequired();
+                entity.HasIndex(e => e.PortalGroupId);
+                entity.HasIndex(e => e.CreatedAt).IsDescending();
+                entity.HasOne(e => e.Document)
+                      .WithMany()
+                      .HasForeignKey(e => e.DocumentId)
+                      .IsRequired(false);
+            });
+
+            // Checklist Template
+            modelBuilder.Entity<ChecklistTemplate>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+                entity.HasIndex(e => e.IsActive);
+                entity.HasIndex(e => e.Category);
+            });
+
+            // Checklist Template Item
+            modelBuilder.Entity<ChecklistTemplateItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Text).IsRequired();
+                entity.HasIndex(e => e.ChecklistTemplateId);
+                entity.HasOne(e => e.ChecklistTemplate)
+                      .WithMany(t => t.Items)
+                      .HasForeignKey(e => e.ChecklistTemplateId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Checklist Instance
+            modelBuilder.Entity<ChecklistInstance>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.AssignedTo);
+                entity.HasIndex(e => e.DueDate);
+                entity.HasIndex(e => e.CreatedAt).IsDescending();
+                entity.HasOne(e => e.ChecklistTemplate)
+                      .WithMany()
+                      .HasForeignKey(e => e.ChecklistTemplateId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Checklist Instance Item
+            modelBuilder.Entity<ChecklistInstanceItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Text).IsRequired();
+                entity.HasIndex(e => e.ChecklistInstanceId);
+                entity.HasIndex(e => e.Result);
+                entity.HasOne(e => e.ChecklistInstance)
+                      .WithMany(i => i.Items)
+                      .HasForeignKey(e => e.ChecklistInstanceId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.ChecklistTemplateItem)
+                      .WithMany()
+                      .HasForeignKey(e => e.ChecklistTemplateItemId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Checklist Audit Log
+            modelBuilder.Entity<ChecklistAuditLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Action).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.IPAddress).HasMaxLength(45);
+                entity.HasIndex(e => e.ChecklistInstanceId);
+                entity.HasIndex(e => e.ChangedAt).IsDescending();
+                entity.HasOne(e => e.ChecklistInstance)
+                      .WithMany(i => i.AuditLogs)
+                      .HasForeignKey(e => e.ChecklistInstanceId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
         }

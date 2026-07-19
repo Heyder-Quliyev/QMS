@@ -71,32 +71,50 @@ function syncCurrentCapaWizardStep() {
 }
 
 async function openCapaPage(ncrId) {
-  currentNcrIdForCapa = ncrId;
+  console.log('[DEBUG openCapaPage] Called with ncrId:', ncrId, 'type:', typeof ncrId);
+  currentNcrIdForCapa = parseInt(ncrId, 10); // Always parse to number
+  console.log('[DEBUG openCapaPage] currentNcrIdForCapa set to:', currentNcrIdForCapa, 'type:', typeof currentNcrIdForCapa);
   const ncr = capaGetNcrById(ncrId);
+  console.log('[DEBUG openCapaPage] Got NCR object:', ncr);
   document.getElementById('capa-panel-title').textContent = ncr ? `CAPA Actions for ${ncr.ncrNumber}` : 'CAPA Actions';
   await capaShowPage('capa');
 }
 
 async function fetchCapas() {
+  console.log('[DEBUG fetchCapas] Fetching from:', `${capaApiBaseUrl()}/capa`);
   const res = await fetch(`${capaApiBaseUrl()}/capa`);
   allCapas = await res.json();
+  console.log('[DEBUG fetchCapas] Received capas:', allCapas);
+  console.log('[DEBUG fetchCapas] currentNcrIdForCapa:', currentNcrIdForCapa);
   filterCapas();
 }
 
 function filterCapas() {
+  console.log('[DEBUG filterCapas] Starting filter with currentNcrIdForCapa:', currentNcrIdForCapa, 'type:', typeof currentNcrIdForCapa);
   const term = document.getElementById('capa-search').value.toLowerCase();
   let filtered = allCapas;
-
+  
   if (currentNcrIdForCapa) {
-    filtered = filtered.filter(c => c.ncrId === currentNcrIdForCapa);
+    console.log('[DEBUG filterCapas] Filtering capas where ncrId === currentNcrIdForCapa:', currentNcrIdForCapa);
+    filtered = filtered.filter(c => {
+      console.log('[DEBUG filterCapas] Checking capa:', c);
+      console.log('[DEBUG filterCapas]   capa.ncrId:', c.ncrId, 'type:', typeof c.ncrId);
+      console.log('[DEBUG filterCapas]   capa.NCRId:', c.NCRId, 'type:', typeof c.NCRId);
+      const capaNcrId = c.ncrId != null ? parseInt(c.ncrId, 10) : null;
+      const capaNCRId = c.NCRId != null ? parseInt(c.NCRId, 10) : null;
+      console.log('[DEBUG filterCapas]   Parsed capaNcrId:', capaNcrId, 'Parsed capaNCRId:', capaNCRId);
+      return capaNcrId === currentNcrIdForCapa || capaNCRId === currentNcrIdForCapa;
+    });
   }
-
+  
   filtered = filtered.filter(c =>
     c.title.toLowerCase().includes(term) ||
     c.description.toLowerCase().includes(term) ||
     c.responsiblePersonName.toLowerCase().includes(term)
   );
-
+  
+  console.log('[DEBUG filterCapas] Filtered capas:', filtered);
+  
   renderCapaTable(filtered);
 }
 
@@ -132,12 +150,16 @@ function renderCapaTable(capas) {
 function buildCapaForm() {
   currentCapaWizardStep = 1;
   syncCurrentCapaWizardStep();
+  console.log('[DEBUG buildCapaForm] currentNcrIdForCapa:', currentNcrIdForCapa, 'type:', typeof currentNcrIdForCapa);
   const title = document.getElementById('modal-title');
   const fields = document.getElementById('form-fields');
   const saveBtn = document.querySelector('#record-form button[type="submit"]');
   if (title) title.textContent = 'New CAPA Action - Step 1/4';
   if (saveBtn) saveBtn.style.display = 'none';
   if (!fields) return;
+
+  const ncr = capaGetNcrById(currentNcrIdForCapa);
+  console.log('[DEBUG buildCapaForm] capaGetNcrById returned ncr:', ncr);
 
   fields.innerHTML = `
       <input type="hidden" name="ncrId" value="${currentNcrIdForCapa || ''}">
@@ -151,19 +173,19 @@ function buildCapaForm() {
       
       <div id="capa-wizard-step-1">
         <div class="info-grid" style="margin-bottom: 20px;">
-          <div class="info-item"><span class="info-label">NCR Reference</span><input type="text" name="ncrReference" class="form-input" placeholder="NCR-2026-0001"></div>
-          <div class="info-item"><span class="info-label">NCR Title</span><input type="text" name="ncrTitle" class="form-input" placeholder="Enter NCR title"></div>
+          <div class="info-item"><span class="info-label">NCR Reference</span><input type="text" name="ncrReference" class="form-input" value="${ncr?.ncrNumber || ''}" readonly style="background: rgba(255,255,255,0.05); color: var(--text-muted);"></div>
+          <div class="info-item"><span class="info-label">NCR Title</span><input type="text" name="ncrTitle" class="form-input" value="${ncr?.title || ''}" readonly style="background: rgba(255,255,255,0.05); color: var(--text-muted);"></div>
         </div>
         <div class="form-group">
           <label class="form-label">NCR Description</label>
-          <textarea name="ncrDescription" class="form-input" rows="4" placeholder="Describe the non-conformance in detail..."></textarea>
+          <textarea name="ncrDescription" class="form-input" rows="4" readonly style="background: rgba(255,255,255,0.05); color: var(--text-muted);">${ncr?.description || ''}</textarea>
         </div>
         <div class="form-row">
-          <div class="form-group"><label class="form-label">Date of Occurrence</label><input type="date" name="occurrenceDate" class="form-input" value="${new Date().toISOString().split('T')[0]}"></div>
-          <div class="form-group"><label class="form-label">Location / Department</label><input type="text" name="location" class="form-input" placeholder="e.g., Hangar 3, Maintenance"></div>
+          <div class="form-group"><label class="form-label">Date of Occurrence</label><input type="date" name="occurrenceDate" class="form-input" value="${ncr?.date ? new Date(ncr.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}"></div>
+          <div class="form-group"><label class="form-label">Location / Department</label><input type="text" name="location" class="form-input" value="${ncr?.area || ''}" placeholder="e.g., Hangar 3, Maintenance"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label class="form-label">Reported By (Name)</label><input type="text" name="reportedByName" class="form-input" placeholder="John Doe"></div>
+          <div class="form-group"><label class="form-label">Reported By (Name)</label><input type="text" name="reportedByName" class="form-input" value="${ncr?.raisedBy || ''}" placeholder="John Doe"></div>
           <div class="form-group"><label class="form-label">Reported By (Email)</label><input type="email" name="reportedByEmail" class="form-input" placeholder="john@example.com"></div>
         </div>
         <div class="form-group"><label class="form-label">Attach Evidence</label><input type="file" name="evidenceFile" class="form-input" multiple></div>
@@ -242,6 +264,10 @@ function buildCapaForm() {
         </button>
       </div>
     `;
+  
+  // Verify hidden input value after setting innerHTML!
+  const hiddenNcrIdInput = fields.querySelector('input[name="ncrId"]');
+  console.log('[DEBUG buildCapaForm] hiddenNcrIdInput value:', hiddenNcrIdInput?.value, 'type:', typeof hiddenNcrIdInput?.value);
 
   document.getElementById('modal-overlay').classList.add('active');
 }
@@ -328,9 +354,16 @@ async function submitCapaWizard() {
   if (!form) return;
 
   const formData = new FormData(form);
+  console.log('[DEBUG submitCapaWizard] FormData entries:', Array.from(formData.entries()));
+  console.log('[DEBUG submitCapaWizard] formData.get("ncrId"):', formData.get('ncrId'), 'type:', typeof formData.get('ncrId'));
+
   const capaId = document.getElementById('form-id').value;
   const isEdit = capaId && capaId.trim() !== '';
   const newId = crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-0000-0000-000000000000';
+
+  console.log('[DEBUG submitCapaWizard] currentNcrIdForCapa:', currentNcrIdForCapa, 'type:', typeof currentNcrIdForCapa);
+  const parsedNcrId = currentNcrIdForCapa ? parseInt(currentNcrIdForCapa, 10) : null;
+  console.log('[DEBUG submitCapaWizard] parsedNcrId from currentNcrIdForCapa:', parsedNcrId, 'type:', typeof parsedNcrId);
 
   const capaData = {
     Id: isEdit ? capaId : newId,
@@ -355,8 +388,8 @@ async function submitCapaWizard() {
     priority: formData.get('priority') || 'medium',
     Status: formData.get('status') || 'not_started',
     status: formData.get('status') || 'not_started',
-    NCRId: formData.get('ncrId') ? parseInt(formData.get('ncrId'), 10) : null,
-    ncrId: formData.get('ncrId') ? parseInt(formData.get('ncrId'), 10) : null,
+    NCRId: parsedNcrId,
+    ncrId: parsedNcrId,
     CreatedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
     UpdatedAt: new Date().toISOString(),
@@ -385,6 +418,8 @@ async function submitCapaWizard() {
 
   console.log('Is edit:', isEdit);
   console.log('Sending CAPA data:', capaData);
+  const jsonPayload = JSON.stringify(capaData);
+  console.log('JSON Payload being sent:', jsonPayload);
 
   try {
     const method = isEdit ? 'PUT' : 'POST';
@@ -393,7 +428,7 @@ async function submitCapaWizard() {
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(capaData)
+      body: jsonPayload
     });
 
     console.log('Response status:', res.status);

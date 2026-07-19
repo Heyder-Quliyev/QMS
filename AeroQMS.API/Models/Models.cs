@@ -3,6 +3,18 @@ using System.Collections.Generic;
 
 namespace AeroQMS.API.Models
 {
+    public class EmailSettings
+    {
+        public string SmtpHost { get; set; }
+        public int SmtpPort { get; set; }
+        public bool EnableSsl { get; set; }
+        public string SenderEmail { get; set; }
+        public string SenderName { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+        public string FrontendBaseUrl { get; set; }
+    }
+
     public class Audit
     {
         public int Id { get; set; }
@@ -217,17 +229,28 @@ namespace AeroQMS.API.Models
     public class CapaAction
     {
         public Guid Id { get; set; }
+        
+        [System.Text.Json.Serialization.JsonPropertyName("ncrId")]
         public int? NCRId { get; set; }
         
         // Wizard fields
+        [System.Text.Json.Serialization.JsonPropertyName("ncrReference")]
         public string? NCRReference { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("ncrTitle")]
         public string? NCRTitle { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("ncrDescription")]
         public string? NCRDescription { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("occurrenceDate")]
         public DateTime? OccurrenceDate { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("location")]
         public string? Location { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("reportedByName")]
         public string? ReportedByName { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("reportedByEmail")]
         public string? ReportedByEmail { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("rootCause")]
         public string? RootCause { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("contributingFactors")]
         public string? ContributingFactors { get; set; }
         
         public string ActionType { get; set; } // corrective, preventive
@@ -405,5 +428,171 @@ namespace AeroQMS.API.Models
     {
         public string Action { get; set; }
         public int Count { get; set; }
+    }
+
+    // Checklist Models
+    public enum ChecklistInstanceStatus
+    {
+        Draft,
+        InProgress,
+        Completed,
+        Voided
+    }
+
+    public enum ChecklistItemResult
+    {
+        Pending,
+        Pass,
+        Fail,
+        NA
+    }
+
+    public class ChecklistTemplate
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public string? Description { get; set; }
+        public string? Category { get; set; }
+        public int Version { get; set; } = 1;
+        public bool IsActive { get; set; } = true;
+
+        public string? CreatedBy { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string? ApprovedBy { get; set; }
+        public DateTime? ApprovedAt { get; set; }
+
+        public ICollection<ChecklistTemplateItem> Items { get; set; } = new List<ChecklistTemplateItem>();
+    }
+
+    public class ChecklistTemplateItem
+    {
+        public int Id { get; set; }
+        public int ChecklistTemplateId { get; set; }
+        public ChecklistTemplate ChecklistTemplate { get; set; }
+
+        public string Text { get; set; }
+        public int OrderIndex { get; set; }
+        public bool IsRequired { get; set; } = true;
+        public bool AllowNA { get; set; } = true;
+        public bool RequiresNoteOnFail { get; set; }
+        public bool RequiresPhotoOnFail { get; set; }
+    }
+
+    public class ChecklistInstance
+    {
+        public int Id { get; set; }
+        public int ChecklistTemplateId { get; set; }
+        public ChecklistTemplate ChecklistTemplate { get; set; }
+
+        public string Title { get; set; }
+        public ChecklistInstanceStatus Status { get; set; } = ChecklistInstanceStatus.Draft;
+        public string? AssignedTo { get; set; } // userId
+        public string CreatedBy { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string? CompletedBy { get; set; }
+        public DateTime? CompletedAt { get; set; }
+        public DateTime? DueDate { get; set; }
+
+        public ICollection<ChecklistInstanceItem> Items { get; set; } = new List<ChecklistInstanceItem>();
+        public ICollection<ChecklistAuditLog> AuditLogs { get; set; } = new List<ChecklistAuditLog>();
+    }
+
+    public class ChecklistInstanceItem
+    {
+        public int Id { get; set; }
+        public int ChecklistInstanceId { get; set; }
+        public ChecklistInstance ChecklistInstance { get; set; }
+
+        public int ChecklistTemplateItemId { get; set; }
+        public ChecklistTemplateItem ChecklistTemplateItem { get; set; }
+
+        public string Text { get; set; }
+        public int OrderIndex { get; set; }
+        public ChecklistItemResult Result { get; set; } = ChecklistItemResult.Pending;
+        public string? Notes { get; set; }
+        public string? PhotoPath { get; set; }
+        public string? CompletedBy { get; set; }
+        public DateTime? CompletedAt { get; set; }
+    }
+
+    public class ChecklistAuditLog
+    {
+        public int Id { get; set; }
+        public int ChecklistInstanceId { get; set; }
+        public ChecklistInstance ChecklistInstance { get; set; }
+
+        public int? ItemId { get; set; }
+        public string Action { get; set; }
+        public string? OldValue { get; set; }
+        public string? NewValue { get; set; }
+        public string ChangedBy { get; set; }
+        public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
+        public string? IPAddress { get; set; }
+    }
+
+    // External Supplier Portal Models
+    public class PortalGroup
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Slug { get; set; }
+        public int CompanyId { get; set; } = 1; // Default company for single-tenant app
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation
+        public List<PortalDocument> PortalDocuments { get; set; } = new();
+        public List<PortalUser> PortalUsers { get; set; } = new();
+    }
+
+    public class PortalDocument
+    {
+        public int Id { get; set; }
+        public int PortalGroupId { get; set; }
+        public int DocumentId { get; set; }
+        public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation
+        public PortalGroup PortalGroup { get; set; }
+        public Document Document { get; set; }
+    }
+
+    public class PortalUser
+    {
+        public int Id { get; set; }
+        public int PortalGroupId { get; set; }
+        public string Email { get; set; }
+        public string Name { get; set; }
+        public string AccessToken { get; set; } = Guid.NewGuid().ToString();
+        public DateTime? LastAccess { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation
+        public PortalGroup PortalGroup { get; set; }
+        public List<PortalAccessLog> AccessLogs { get; set; } = new();
+    }
+
+    public class PortalAccessLog
+    {
+        public int Id { get; set; }
+        public int? PortalUserId { get; set; }
+        public int DocumentId { get; set; }
+        public string Action { get; set; } // "view" or "download"
+        public DateTime AccessedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation
+        public PortalUser? PortalUser { get; set; }
+        public Document Document { get; set; }
+    }
+
+    // Portal Feedback (simple model for feedback submissions)
+    public class PortalFeedback
+    {
+        public int Id { get; set; }
+        public int PortalGroupId { get; set; }
+        public string Email { get; set; }
+        public int? DocumentId { get; set; }
+        public Document? Document { get; set; }
+        public string Message { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

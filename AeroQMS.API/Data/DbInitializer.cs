@@ -20,6 +20,24 @@ namespace AeroQMS.API.Data
 
             EnsureSeedAdminUser(context);
 
+            // Add default portal groups (even if there are existing audits)
+            if (!context.PortalGroups.Any())
+            {
+                var portalGroup1 = new PortalGroup { Name = "Group B", Slug = "group-b", CreatedAt = DateTime.UtcNow };
+                var portalGroup2 = new PortalGroup { Name = "Supplier Portal", Slug = "supplier-portal", CreatedAt = DateTime.UtcNow };
+                context.PortalGroups.AddRange(portalGroup1, portalGroup2);
+                context.SaveChanges();
+
+                // Add some documents to both groups
+                var documents = context.Documents.Take(3).ToList();
+                foreach (var doc in documents)
+                {
+                    context.PortalDocuments.Add(new PortalDocument { PortalGroupId = portalGroup1.Id, DocumentId = doc.Id, AddedAt = DateTime.UtcNow });
+                    context.PortalDocuments.Add(new PortalDocument { PortalGroupId = portalGroup2.Id, DocumentId = doc.Id, AddedAt = DateTime.UtcNow });
+                }
+                context.SaveChanges();
+            }
+
             if (context.Audits.Any()) return;
 
             var audits = new Audit[]
@@ -143,6 +161,24 @@ namespace AeroQMS.API.Data
             context.CapaActions.AddRange(capas);
 
             context.SaveChanges();
+
+            // Add default portal groups (even if there are existing audits)
+            if (!context.PortalGroups.Any())
+            {
+                var portalGroup1 = new PortalGroup { Name = "Group B", Slug = "group-b", CreatedAt = DateTime.UtcNow };
+                var portalGroup2 = new PortalGroup { Name = "Supplier Portal", Slug = "supplier-portal", CreatedAt = DateTime.UtcNow };
+                context.PortalGroups.AddRange(portalGroup1, portalGroup2);
+                context.SaveChanges();
+
+                // Add some documents to both groups
+                var documents = context.Documents.Take(3).ToList();
+                foreach (var doc in documents)
+                {
+                    context.PortalDocuments.Add(new PortalDocument { PortalGroupId = portalGroup1.Id, DocumentId = doc.Id, AddedAt = DateTime.UtcNow });
+                    context.PortalDocuments.Add(new PortalDocument { PortalGroupId = portalGroup2.Id, DocumentId = doc.Id, AddedAt = DateTime.UtcNow });
+                }
+                context.SaveChanges();
+            }
         }
 
         private static void EnsureUserAuthSchema(AppDbContext context)

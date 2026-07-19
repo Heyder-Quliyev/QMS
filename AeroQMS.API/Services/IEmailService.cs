@@ -15,5 +15,6 @@ namespace AeroQMS.API.Services
         Task SendDocumentAcknowledgmentRequiredEmail(Document document, User user, DateTime? dueDate, IReadOnlyList<string> keyChanges, string? linkUrl);
         Task SendDocumentReviewNotificationEmail(Document document, User user, int daysUntilDue, string templateName, string? linkUrl);
         Task SendWeeklyReviewSummaryEmail(User manager, int dueSoonCount, int overdueCount, string? linkUrl);
+        Task SendPortalInviteEmail(string toEmail, string userName, string companyName, string portalLink);
     }
 }

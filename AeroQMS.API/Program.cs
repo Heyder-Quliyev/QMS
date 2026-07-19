@@ -1,4 +1,5 @@
 using AeroQMS.API.Data;
+using AeroQMS.API.Models;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Http.Features;
@@ -17,6 +18,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Email and Notification Services
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHostedService<CapaNotificationService>();
 builder.Services.AddHostedService<ReviewAutomationNotificationService>();
@@ -95,7 +97,7 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
@@ -254,8 +256,138 @@ CREATE INDEX IF NOT EXISTS IX_DocumentApprovalWorkflows_Status ON DocumentApprov
             Console.WriteLine($"Warning: Could not ensure DocumentApprovalWorkflows table: {ex.Message}");
         }
 
+        // Create Portal tables
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS PortalGroups (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Name TEXT NOT NULL,
+    Slug TEXT NOT NULL UNIQUE,
+    CompanyId INTEGER NOT NULL DEFAULT 1,
+    CreatedAt TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS IX_PortalGroups_Slug ON PortalGroups(Slug);
+CREATE INDEX IF NOT EXISTS IX_PortalGroups_CompanyId ON PortalGroups(CompanyId);
 
-        
+CREATE TABLE IF NOT EXISTS PortalDocuments (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    PortalGroupId INTEGER NOT NULL,
+    DocumentId INTEGER NOT NULL,
+    AddedAt TEXT NOT NULL,
+    FOREIGN KEY (PortalGroupId) REFERENCES PortalGroups(Id) ON DELETE CASCADE,
+    FOREIGN KEY (DocumentId) REFERENCES Documents(Id) ON DELETE CASCADE,
+    UNIQUE(PortalGroupId, DocumentId)
+);
+CREATE INDEX IF NOT EXISTS IX_PortalDocuments_PortalGroupId ON PortalDocuments(PortalGroupId);
+CREATE INDEX IF NOT EXISTS IX_PortalDocuments_DocumentId ON PortalDocuments(DocumentId);
+
+CREATE TABLE IF NOT EXISTS PortalUsers (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    PortalGroupId INTEGER NOT NULL,
+    Email TEXT NOT NULL,
+    Name TEXT NOT NULL,
+    AccessToken TEXT NOT NULL UNIQUE,
+    LastAccess TEXT NULL,
+    CreatedAt TEXT NOT NULL,
+    FOREIGN KEY (PortalGroupId) REFERENCES PortalGroups(Id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS IX_PortalUsers_PortalGroupId ON PortalUsers(PortalGroupId);
+CREATE INDEX IF NOT EXISTS IX_PortalUsers_AccessToken ON PortalUsers(AccessToken);
+
+CREATE TABLE IF NOT EXISTS PortalAccessLogs (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    PortalUserId INTEGER NULL,
+    DocumentId INTEGER NOT NULL,
+    Action TEXT NOT NULL,
+    AccessedAt TEXT NOT NULL,
+    FOREIGN KEY (PortalUserId) REFERENCES PortalUsers(Id) ON DELETE SET NULL,
+    FOREIGN KEY (DocumentId) REFERENCES Documents(Id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS IX_PortalAccessLogs_PortalUserId ON PortalAccessLogs(PortalUserId);
+CREATE INDEX IF NOT EXISTS IX_PortalAccessLogs_DocumentId ON PortalAccessLogs(DocumentId);
+CREATE INDEX IF NOT EXISTS IX_PortalAccessLogs_AccessedAt ON PortalAccessLogs(AccessedAt DESC);
+
+CREATE TABLE IF NOT EXISTS PortalFeedbacks (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    PortalGroupId INTEGER NOT NULL,
+    Email TEXT NOT NULL,
+    DocumentId INTEGER NULL,
+    Message TEXT NOT NULL,
+    CreatedAt TEXT NOT NULL,
+    FOREIGN KEY (PortalGroupId) REFERENCES PortalGroups(Id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS IX_PortalFeedbacks_PortalGroupId ON PortalFeedbacks(PortalGroupId);
+CREATE INDEX IF NOT EXISTS IX_PortalFeedbacks_CreatedAt ON PortalFeedbacks(CreatedAt DESC);
+");
+
+            // Check and fix PortalAccessLogs PortalUserId column to be nullable if it's not already
+            try
+            {
+                var connection = context.Database.GetDbConnection();
+                await connection.OpenAsync();
+                var existingPortalAccessCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var portalUserIdNotNull = false;
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = "PRAGMA table_info(PortalAccessLogs)";
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            var colName = reader.GetString(1);
+                            var notNull = reader.GetBoolean(3);
+                            existingPortalAccessCols.Add(colName);
+                            if (colName.Equals("PortalUserId", StringComparison.OrdinalIgnoreCase) && notNull)
+                            {
+                                portalUserIdNotNull = true;
+                            }
+                        }
+                    }
+                }
+
+                if (portalUserIdNotNull)
+                {
+                    Console.WriteLine("🔧 Fixing PortalAccessLogs.PortalUserId to be nullable...");
+                    // SQLite doesn't support ALTER COLUMN directly, so we need to recreate the table
+                    await context.Database.ExecuteSqlRawAsync(@"
+-- 1. Create a new table with correct schema
+CREATE TABLE IF NOT EXISTS PortalAccessLogs_New (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    PortalUserId INTEGER NULL,
+    DocumentId INTEGER NOT NULL,
+    Action TEXT NOT NULL,
+    AccessedAt TEXT NOT NULL,
+    FOREIGN KEY (PortalUserId) REFERENCES PortalUsers(Id) ON DELETE SET NULL,
+    FOREIGN KEY (DocumentId) REFERENCES Documents(Id) ON DELETE CASCADE
+);
+-- 2. Copy data from old table to new table
+INSERT INTO PortalAccessLogs_New (Id, PortalUserId, DocumentId, Action, AccessedAt)
+SELECT Id, PortalUserId, DocumentId, Action, AccessedAt FROM PortalAccessLogs;
+-- 3. Drop old table
+DROP TABLE PortalAccessLogs;
+-- 4. Rename new table to original name
+ALTER TABLE PortalAccessLogs_New RENAME TO PortalAccessLogs;
+-- 5. Recreate indexes
+CREATE INDEX IF NOT EXISTS IX_PortalAccessLogs_PortalUserId ON PortalAccessLogs(PortalUserId);
+CREATE INDEX IF NOT EXISTS IX_PortalAccessLogs_DocumentId ON PortalAccessLogs(DocumentId);
+CREATE INDEX IF NOT EXISTS IX_PortalAccessLogs_AccessedAt ON PortalAccessLogs(AccessedAt DESC);
+");
+                    Console.WriteLine("✅ PortalAccessLogs fixed successfully!");
+                }
+                await connection.CloseAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Could not fix PortalAccessLogs table: {ex.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not ensure Portal tables: {ex.Message}");
+        }
+
+
         // FORCE UPDATE ALL completion dates - even if already set!
         try
         {
@@ -311,8 +443,11 @@ CREATE INDEX IF NOT EXISTS IX_DocumentApprovalWorkflows_Status ON DocumentApprov
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
+
+var portalDistPath = Path.Combine(app.Environment.WebRootPath, "portal", "dist");
 
 app.UseCors("AllowAll");
 
@@ -332,10 +467,41 @@ app.UseStaticFiles(new StaticFileOptions
 
 // app.UseHttpsRedirection();
 
+app.UseRouting();
+
+app.MapWhen(
+    context => context.Request.Path.StartsWithSegments("/portal") &&
+               !context.Request.Path.StartsWithSegments("/api"),
+    portalApp =>
+    {
+        portalApp.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(portalDistPath),
+            RequestPath = "/portal",
+            OnPrepareResponse = ctx =>
+            {
+                if (ctx.File.Name.Equals("index.html", StringComparison.OrdinalIgnoreCase))
+                {
+                    ctx.Context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+                    ctx.Context.Response.Headers.Append("Pragma", "no-cache");
+                    ctx.Context.Response.Headers.Append("Expires", "0");
+                }
+            }
+        });
+
+        portalApp.Run(async context =>
+        {
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.SendFileAsync(Path.Combine(portalDistPath, "index.html"));
+        });
+    });
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Fallback for main app
 app.MapFallbackToFile("index.html");
 
 app.Run();
