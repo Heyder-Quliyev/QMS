@@ -441,10 +441,15 @@ namespace AeroQMS.API.Models
 
     public enum ChecklistItemResult
     {
-        Pending,
         Pass,
         Fail,
         NA
+    }
+
+    public enum ChecklistItemType
+    {
+        Text,
+        Numeric
     }
 
     public class ChecklistTemplate
@@ -471,7 +476,11 @@ namespace AeroQMS.API.Models
         public ChecklistTemplate ChecklistTemplate { get; set; }
 
         public string Text { get; set; }
+        public string? ReferenceDocument { get; set; }
         public int OrderIndex { get; set; }
+        public ChecklistItemType ItemType { get; set; } = ChecklistItemType.Text;
+        public decimal? MinThreshold { get; set; }
+        public decimal? MaxThreshold { get; set; }
         public bool IsRequired { get; set; } = true;
         public bool AllowNA { get; set; } = true;
         public bool RequiresNoteOnFail { get; set; }
@@ -508,7 +517,8 @@ namespace AeroQMS.API.Models
 
         public string Text { get; set; }
         public int OrderIndex { get; set; }
-        public ChecklistItemResult Result { get; set; } = ChecklistItemResult.Pending;
+        public ChecklistItemResult? Result { get; set; } = null;
+        public decimal? NumericValue { get; set; }
         public string? Notes { get; set; }
         public string? PhotoPath { get; set; }
         public string? CompletedBy { get; set; }

@@ -448,6 +448,7 @@ if (app.Environment.IsDevelopment())
 }
 
 var portalDistPath = Path.Combine(app.Environment.WebRootPath, "portal", "dist");
+var checklistDistPath = Path.Combine(app.Environment.WebRootPath, "checklist", "dist");
 
 app.UseCors("AllowAll");
 
@@ -493,6 +494,33 @@ app.MapWhen(
         {
             context.Response.ContentType = "text/html; charset=utf-8";
             await context.Response.SendFileAsync(Path.Combine(portalDistPath, "index.html"));
+        });
+    });
+
+app.MapWhen(
+    context => context.Request.Path.StartsWithSegments("/checklist") &&
+               !context.Request.Path.StartsWithSegments("/api"),
+    checklistApp =>
+    {
+        checklistApp.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(checklistDistPath),
+            RequestPath = "/checklist",
+            OnPrepareResponse = ctx =>
+            {
+                if (ctx.File.Name.Equals("index.html", StringComparison.OrdinalIgnoreCase))
+                {
+                    ctx.Context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+                    ctx.Context.Response.Headers.Append("Pragma", "no-cache");
+                    ctx.Context.Response.Headers.Append("Expires", "0");
+                }
+            }
+        });
+
+        checklistApp.Run(async context =>
+        {
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.SendFileAsync(Path.Combine(checklistDistPath, "index.html"));
         });
     });
 

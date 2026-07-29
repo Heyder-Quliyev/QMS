@@ -250,8 +250,16 @@ C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\13tls87
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\86m47tz4je-kb15v1qkpx.gz
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\0ewbp2jgjd-3ywv9cr32p.gz
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\g3kvu583ir-lacxozc68z.gz
-C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\staticwebassets.upToDateCheck.txt
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\bin\Debug\net9.0\Swashbuckle.AspNetCore.Swagger.dll
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\bin\Debug\net9.0\Swashbuckle.AspNetCore.SwaggerGen.dll
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\bin\Debug\net9.0\Swashbuckle.AspNetCore.SwaggerUI.dll
 C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\bin\Debug\net9.0\runtimes\browser-wasm\nativeassets\net8.0\e_sqlite3.a
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\t23exbt1jz-wriia6cp3m.gz
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\n8xw40n8ft-etzjfsup32.gz
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\ktbv3tmfvo-guzw4o9gtv.gz
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\adq5q9diy0-d0gjt16jv0.gz
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\soh616m2l4-cpv2aessq6.gz
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\z1hyb7yfrv-9g3zxw1n5e.gz
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\mkgkexcn6y-qx9gnl07zw.gz
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\ix2o02ljmd-iwrhrdw64j.gz
+C:\Users\Acer\Downloads\QMS Soft\AeroQMS.API\obj\Debug\net9.0\compressed\ubi18zzxpt-n9azpupcs4.gz
