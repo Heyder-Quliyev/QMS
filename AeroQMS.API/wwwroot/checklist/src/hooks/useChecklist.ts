@@ -5,11 +5,20 @@ import {
 } from '@tanstack/react-query';
 import {
   completeChecklist,
+  createChecklistInstance,
+  deleteChecklist,
   getChecklistInstance,
   getChecklistInstances,
-  patchChecklistItem,
+  getChecklistTemplates,
+  updateChecklistItem,
+  updateChecklistMetadata,
+  uploadChecklistPhoto,
 } from '../services/checklistApi';
-import type { UpdateChecklistItemPayload } from '../types';
+import type {
+  CreateChecklistPayload,
+  UpdateChecklistItemPayload,
+  UpdateChecklistMetadataPayload,
+} from '../types';
 
 export function useChecklistInstances() {
   return useQuery({
@@ -42,7 +51,7 @@ export function useUpdateChecklistItem() {
       instanceId: number;
       itemId: number;
       payload: UpdateChecklistItemPayload;
-    }) => patchChecklistItem(instanceId, itemId, payload),
+    }) => updateChecklistItem(instanceId, itemId, payload),
 
     onMutate: async ({ instanceId, itemId, payload }) => {
       await queryClient.cancelQueries({
@@ -65,6 +74,10 @@ export function useUpdateChecklistItem() {
                     payload.numericValue !== undefined
                       ? payload.numericValue
                       : it.numericValue,
+                  textValue:
+                    payload.textValue !== undefined
+                      ? payload.textValue
+                      : it.textValue,
                   notes:
                     payload.notes !== undefined ? payload.notes : it.notes,
                   photoPath:
@@ -104,6 +117,20 @@ export function useUpdateChecklistItem() {
   });
 }
 
+export function useUploadChecklistPhoto() {
+  return useMutation({
+    mutationFn: ({
+      instanceId,
+      itemId,
+      file,
+    }: {
+      instanceId: number;
+      itemId: number;
+      file: File;
+    }) => uploadChecklistPhoto(instanceId, itemId, file),
+  });
+}
+
 export function useCompleteChecklist() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -112,6 +139,54 @@ export function useCompleteChecklist() {
       void queryClient.invalidateQueries({
         queryKey: ['checklistInstance', instanceId],
       });
+      void queryClient.invalidateQueries({ queryKey: ['checklistInstances'] });
+    },
+  });
+}
+
+export function useChecklistTemplates() {
+  return useQuery({
+    queryKey: ['checklistTemplates'],
+    queryFn: getChecklistTemplates,
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateChecklist() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateChecklistPayload) => createChecklistInstance(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['checklistInstances'] });
+    },
+  });
+}
+
+export function useUpdateChecklistMetadata() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      instanceId,
+      payload,
+    }: {
+      instanceId: number;
+      payload: UpdateChecklistMetadataPayload;
+    }) => updateChecklistMetadata(instanceId, payload),
+    onSuccess: (_data, { instanceId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: ['checklistInstance', instanceId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ['checklistInstances'] });
+    },
+  });
+}
+
+export function useDeleteChecklist() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (instanceId: number) => deleteChecklist(instanceId),
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['checklistInstances'] });
     },
   });

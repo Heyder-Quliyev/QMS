@@ -1,51 +1,7 @@
+import { Link } from 'react-router-dom';
 import type { ChecklistInstanceStatus as TStatus } from '../types';
-import { ChecklistInstanceStatus } from '../types';
-
-function statusLabel(status: TStatus) {
-  switch (status) {
-    case ChecklistInstanceStatus.Draft:
-      return 'Draft';
-    case ChecklistInstanceStatus.InProgress:
-      return 'In Progress';
-    case ChecklistInstanceStatus.Completed:
-      return 'Completed';
-    case ChecklistInstanceStatus.Voided:
-      return 'Voided';
-    default:
-      return 'Unknown';
-  }
-}
-
-function statusClass(status: TStatus) {
-  switch (status) {
-    case ChecklistInstanceStatus.Draft:
-      return 'badge badge-draft';
-    case ChecklistInstanceStatus.InProgress:
-      return 'badge badge-progress';
-    case ChecklistInstanceStatus.Completed:
-      return 'badge badge-success';
-    case ChecklistInstanceStatus.Voided:
-      return 'badge badge-muted';
-    default:
-      return 'badge';
-  }
-}
-
-function formatDate(iso: string | null | undefined) {
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
+import { StatusBadge } from './StatusBadge';
+import { formatDate } from '../utils/checklistStatus';
 
 interface Props {
   title: string;
@@ -59,6 +15,12 @@ interface Props {
   readOnly: boolean;
   onComplete: () => void;
   completing: boolean;
+  canEditMetadata?: boolean;
+  canDelete?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  editing?: boolean;
+  deleting?: boolean;
 }
 
 export function ChecklistHeader({
@@ -73,14 +35,23 @@ export function ChecklistHeader({
   readOnly,
   onComplete,
   completing,
+  canEditMetadata = false,
+  canDelete = false,
+  onEdit,
+  onDelete,
+  editing = false,
+  deleting = false,
 }: Props) {
   return (
     <header className="checklist-header">
+      <Link to="/list" className="back-to-list">
+        ← Back to list
+      </Link>
       <div className="checklist-header-top">
         <div>
           <div className="checklist-title-row">
             <h1 className="checklist-title">{title}</h1>
-            <span className={statusClass(status)}>{statusLabel(status)}</span>
+            <StatusBadge status={status} />
           </div>
           <div className="checklist-meta">
             <span title="Created">
@@ -104,8 +75,32 @@ export function ChecklistHeader({
             )}
           </div>
         </div>
-        {!readOnly && (
-          <div className="checklist-header-actions">
+        <div className="checklist-header-actions">
+          {!readOnly && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={onEdit}
+              disabled={!canEditMetadata || editing}
+              title={canEditMetadata ? 'Edit checklist details' : 'Cannot edit Approved/Voided checklists'}
+            >
+              {editing ? 'Editing…' : 'Edit'}
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-danger btn-small"
+            onClick={onDelete}
+            disabled={!canDelete || deleting}
+            title={
+              canDelete
+                ? 'Delete checklist'
+                : 'Only Draft or Pending Approval checklists can be deleted'
+            }
+          >
+            {deleting ? 'Deleting…' : 'Delete'}
+          </button>
+          {!readOnly && (
             <button
               type="button"
               className="btn btn-primary"
@@ -114,8 +109,8 @@ export function ChecklistHeader({
             >
               {completing ? 'Completing…' : 'Complete Checklist'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </header>
   );

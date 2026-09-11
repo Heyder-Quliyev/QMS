@@ -433,10 +433,11 @@ namespace AeroQMS.API.Models
     // Checklist Models
     public enum ChecklistInstanceStatus
     {
-        Draft,
-        InProgress,
-        Completed,
-        Voided
+        Draft = 0,
+        InProgress = 1,
+        Approved = 2,
+        Voided = 3,
+        PendingApproval = 4
     }
 
     public enum ChecklistItemResult
@@ -448,8 +449,11 @@ namespace AeroQMS.API.Models
 
     public enum ChecklistItemType
     {
-        Text,
-        Numeric
+        PassFail = 0,
+        YesNo = 1,
+        Text = 2,
+        Number = 3,
+        PhotoRequired = 4,
     }
 
     public class ChecklistTemplate
@@ -460,13 +464,16 @@ namespace AeroQMS.API.Models
         public string? Category { get; set; }
         public int Version { get; set; } = 1;
         public bool IsActive { get; set; } = true;
+        public bool IsAdHoc { get; set; }
 
         public string? CreatedBy { get; set; }
+        public int? CreatedByUserId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string? ApprovedBy { get; set; }
         public DateTime? ApprovedAt { get; set; }
 
         public ICollection<ChecklistTemplateItem> Items { get; set; } = new List<ChecklistTemplateItem>();
+        public ICollection<ChecklistInstance> Instances { get; set; } = new List<ChecklistInstance>();
     }
 
     public class ChecklistTemplateItem
@@ -478,7 +485,7 @@ namespace AeroQMS.API.Models
         public string Text { get; set; }
         public string? ReferenceDocument { get; set; }
         public int OrderIndex { get; set; }
-        public ChecklistItemType ItemType { get; set; } = ChecklistItemType.Text;
+        public ChecklistItemType ItemType { get; set; } = ChecklistItemType.PassFail;
         public decimal? MinThreshold { get; set; }
         public decimal? MaxThreshold { get; set; }
         public bool IsRequired { get; set; } = true;
@@ -519,6 +526,7 @@ namespace AeroQMS.API.Models
         public int OrderIndex { get; set; }
         public ChecklistItemResult? Result { get; set; } = null;
         public decimal? NumericValue { get; set; }
+        public string? TextValue { get; set; }
         public string? Notes { get; set; }
         public string? PhotoPath { get; set; }
         public string? CompletedBy { get; set; }

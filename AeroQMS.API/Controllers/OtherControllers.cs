@@ -3175,25 +3175,6 @@ namespace AeroQMS.API.Controllers
 
     [ApiController]
     [Route("api/[controller]")]
-    public class ChecklistsController : ControllerBase
-    {
-        private readonly AppDbContext _context;
-        public ChecklistsController(AppDbContext context) { _context = context; }
-
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Checklist>>> GetChecklists() => await _context.Checklists.Include(c => c.Items).ToListAsync();
-
-        [HttpPost]
-        public async Task<ActionResult<Checklist>> PostChecklist(Checklist checklist)
-        {
-            _context.Checklists.Add(checklist);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetChecklists), new { id = checklist.Id }, checklist);
-        }
-    }
-
-    [ApiController]
-    [Route("api/[controller]")]
     public class TrainingController : ControllerBase
     {
         private readonly AppDbContext _context;

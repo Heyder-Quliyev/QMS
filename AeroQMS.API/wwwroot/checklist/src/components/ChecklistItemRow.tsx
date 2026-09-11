@@ -1,32 +1,64 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ChecklistItem, ChecklistItemResult as TResult } from '../types';
-import {
-  ChecklistItemResult,
-  ChecklistItemType,
-} from '../types';
+import { ChecklistItemResult, ChecklistItemType } from '../types';
+
+interface ChangePayload {
+  result?: TResult | null;
+  numericValue?: number | null;
+  textValue?: string | null;
+  notes?: string | null;
+  photoPath?: string | null;
+  validateRequired?: boolean;
+}
 
 interface Props {
   item: ChecklistItem;
   readOnly: boolean;
-  onChange: (payload: {
-    result?: TResult | null;
-    numericValue?: number | null;
-    notes?: string | null;
-  }) => void;
+  onChange: (payload: ChangePayload) => void;
+  onUploadPhoto: (file: File) => void;
   changing: boolean;
+  uploadingPhoto: boolean;
 }
 
-function resultLabel(r: TResult | null) {
-  if (r === null) return 'Unmarked';
-  if (r === ChecklistItemResult.Pass) return 'Pass';
-  if (r === ChecklistItemResult.Fail) return 'Fail';
+function normalize(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function resultLabel(item: ChecklistItem) {
+  if (item.itemType === ChecklistItemType.YesNo) {
+    if (item.result === ChecklistItemResult.Pass) return 'Yes';
+    if (item.result === ChecklistItemResult.Fail) return 'No';
+    if (item.result === ChecklistItemResult.NA) return 'N/A';
+    return null;
+  }
+
+  if (item.itemType === ChecklistItemType.Text) {
+    return item.textValue ? 'Answered' : null;
+  }
+
+  if (item.itemType === ChecklistItemType.PhotoRequired) {
+    return item.photoPath ? 'Photo Attached' : null;
+  }
+
+  if (item.result === null) return null;
+  if (item.result === ChecklistItemResult.Pass) return 'Pass';
+  if (item.result === ChecklistItemResult.Fail) return 'Fail';
   return 'N/A';
 }
 
-function resultVariant(r: TResult | null) {
-  if (r === ChecklistItemResult.Pass) return 'pass';
-  if (r === ChecklistItemResult.Fail) return 'fail';
-  if (r === ChecklistItemResult.NA) return 'na';
+function resultVariant(item: ChecklistItem) {
+  if (item.itemType === ChecklistItemType.Text) {
+    return item.textValue ? 'pass' : 'none';
+  }
+
+  if (item.itemType === ChecklistItemType.PhotoRequired) {
+    return item.photoPath ? 'pass' : 'none';
+  }
+
+  if (item.result === ChecklistItemResult.Pass) return 'pass';
+  if (item.result === ChecklistItemResult.Fail) return 'fail';
+  if (item.result === ChecklistItemResult.NA) return 'na';
   return 'none';
 }
 
@@ -42,19 +74,50 @@ function formatThreshold(item: ChecklistItem) {
   return parts.join(' · ');
 }
 
+function controlLabel(item: ChecklistItem) {
+  switch (item.itemType) {
+    case ChecklistItemType.PassFail:
+      return 'Pass / Fail';
+    case ChecklistItemType.YesNo:
+      return 'Yes / No';
+    case ChecklistItemType.Text:
+      return 'Text Answer';
+    case ChecklistItemType.Number:
+      return 'Numeric Answer';
+    case ChecklistItemType.PhotoRequired:
+      return 'Photo Upload';
+    default:
+      return 'Answer';
+  }
+}
+
 export function ChecklistItemRow({
   item,
   readOnly,
   onChange,
+  onUploadPhoto,
   changing,
+  uploadingPhoto,
 }: Props) {
-  const [notes, setNotes] = useState<string>(item.notes ?? '');
-  const [numericDraft, setNumericDraft] = useState<string>(
-    item.numericValue?.toString() ?? '',
-  );
+  const [notes, setNotes] = useState(item.notes ?? '');
+  const [numericDraft, setNumericDraft] = useState(item.numericValue?.toString() ?? '');
+  const [textDraft, setTextDraft] = useState(item.textValue ?? '');
 
-  const variant = resultVariant(item.result);
+  useEffect(() => {
+    setNotes(item.notes ?? '');
+  }, [item.notes]);
+
+  useEffect(() => {
+    setNumericDraft(item.numericValue?.toString() ?? '');
+  }, [item.numericValue]);
+
+  useEffect(() => {
+    setTextDraft(item.textValue ?? '');
+  }, [item.textValue]);
+
+  const variant = resultVariant(item);
   const hint = formatThreshold(item);
+  const pillLabel = resultLabel(item);
 
   const statusIcon = useMemo(() => {
     if (variant === 'pass')
@@ -83,35 +146,201 @@ export function ChecklistItemRow({
     );
   }, [variant]);
 
-  const pickResult = (r: TResult | null) => {
+  const buildPayload = (patch: ChangePayload = {}): ChangePayload => ({
+    result: patch.result !== undefined ? patch.result : item.result,
+    numericValue:
+      patch.numericValue !== undefined ? patch.numericValue : item.numericValue,
+    textValue: patch.textValue !== undefined ? patch.textValue : item.textValue,
+    notes: patch.notes !== undefined ? patch.notes : normalize(notes),
+    photoPath: patch.photoPath !== undefined ? patch.photoPath : item.photoPath,
+    validateRequired:
+      patch.validateRequired !== undefined ? patch.validateRequired : true,
+  });
+
+  const submit = (patch: ChangePayload) => {
     if (readOnly || changing) return;
-    onChange({ result: r, notes: notes.trim() || null });
+    onChange(buildPayload(patch));
   };
 
   const applyNumeric = () => {
-    if (readOnly || changing) return;
     const trimmed = numericDraft.trim();
     if (trimmed === '') {
-      onChange({ numericValue: null, notes: notes.trim() || null });
+      submit({ numericValue: null, validateRequired: true });
       return;
     }
-    const n = Number(trimmed);
-    if (!Number.isFinite(n)) return;
-    // When user enters a numeric value, send result as null explicitly — the backend auto-evaluates.
-    // Passing undefined result preserves the current item result for text items;
-    // for numeric we explicitly want to let backend determine, so send null only if value changed
-    // But only send result: null if we want backend to recompute; we can send undefined to leave as-is
-    // Let's send numericValue only (result will be auto-set by backend via invalidation/refetch)
-    onChange({
-      numericValue: n,
-      result: undefined,
-      notes: notes.trim() || null,
-    });
+
+    const value = Number(trimmed);
+    if (!Number.isFinite(value)) return;
+    submit({ numericValue: value, validateRequired: true });
+  };
+
+  const applyText = () => {
+    submit({ textValue: normalize(textDraft), validateRequired: true });
   };
 
   const commitNotes = () => {
-    if (readOnly || changing) return;
-    onChange({ notes: notes.trim() || null });
+    submit({ notes: normalize(notes), validateRequired: false });
+  };
+
+  const renderBinaryButtons = (
+    passLabel: string,
+    failLabel: string,
+    ariaLabel: string,
+  ) => (
+    <div className={`seg-control ${changing ? 'disabled' : ''}`} role="group" aria-label={ariaLabel}>
+      <button
+        type="button"
+        className={`seg-btn ${item.result === ChecklistItemResult.Pass ? 'seg-pass' : ''}`}
+        onClick={() => submit({ result: ChecklistItemResult.Pass, validateRequired: true })}
+        disabled={readOnly || changing}
+        aria-pressed={item.result === ChecklistItemResult.Pass}
+      >
+        <span className="seg-icon">✓</span>
+        <span>{passLabel}</span>
+      </button>
+      <button
+        type="button"
+        className={`seg-btn ${item.result === ChecklistItemResult.Fail ? 'seg-fail' : ''}`}
+        onClick={() => submit({ result: ChecklistItemResult.Fail, validateRequired: true })}
+        disabled={readOnly || changing}
+        aria-pressed={item.result === ChecklistItemResult.Fail}
+      >
+        <span className="seg-icon">✕</span>
+        <span>{failLabel}</span>
+      </button>
+      {item.allowNA && (
+        <button
+          type="button"
+          className={`seg-btn ${item.result === ChecklistItemResult.NA ? 'seg-na' : ''}`}
+          onClick={() => submit({ result: ChecklistItemResult.NA, validateRequired: true })}
+          disabled={readOnly || changing}
+          aria-pressed={item.result === ChecklistItemResult.NA}
+        >
+          <span className="seg-icon">—</span>
+          <span>N/A</span>
+        </button>
+      )}
+    </div>
+  );
+
+  const renderControls = () => {
+    switch (item.itemType) {
+      case ChecklistItemType.PassFail:
+        return renderBinaryButtons('Pass', 'Fail', 'Pass or fail');
+      case ChecklistItemType.YesNo:
+        return renderBinaryButtons('Yes', 'No', 'Yes or no');
+      case ChecklistItemType.Text:
+        return (
+          <div className="text-answer-control">
+            <div className="numeric-input-row">
+              <input
+                type="text"
+                className="form-input text-answer-input"
+                value={textDraft}
+                disabled={readOnly || changing}
+                placeholder="Enter answer"
+                onChange={(e) => setTextDraft(e.target.value)}
+                onBlur={applyText}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyText();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                onClick={applyText}
+                disabled={readOnly || changing}
+              >
+                Apply
+              </button>
+            </div>
+            {item.textValue && (
+              <div className="text-answer-preview">
+                Last saved: <strong>{item.textValue}</strong>
+              </div>
+            )}
+          </div>
+        );
+      case ChecklistItemType.Number:
+        return (
+          <div className="numeric-control">
+            <div className="numeric-input-row">
+              <input
+                type="number"
+                className="numeric-input"
+                inputMode="decimal"
+                step="any"
+                value={numericDraft}
+                disabled={readOnly || changing}
+                placeholder="Enter value"
+                onChange={(e) => setNumericDraft(e.target.value)}
+                onBlur={applyNumeric}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyNumeric();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                onClick={applyNumeric}
+                disabled={readOnly || changing}
+              >
+                Apply
+              </button>
+            </div>
+            {hint && <div className="numeric-hint">{hint}</div>}
+            {item.numericValue != null && (
+              <div className="numeric-current">
+                Last saved: <strong>{item.numericValue}</strong>
+                {item.result === ChecklistItemResult.Pass && (
+                  <span className="ok-tag">Pass</span>
+                )}
+                {item.result === ChecklistItemResult.Fail && (
+                  <span className="bad-tag">Fail — outside thresholds</span>
+                )}
+                {item.result === ChecklistItemResult.NA && (
+                  <span className="na-tag">N/A</span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      case ChecklistItemType.PhotoRequired:
+        return (
+          <div className="photo-control">
+            <label className={`photo-upload-btn${readOnly || changing || uploadingPhoto ? ' disabled' : ''}`}>
+              <input
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                disabled={readOnly || changing || uploadingPhoto}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) onUploadPhoto(file);
+                  e.currentTarget.value = '';
+                }}
+              />
+              <span>{uploadingPhoto ? 'Uploading…' : 'Upload Photo / File'}</span>
+            </label>
+            {item.photoPath ? (
+              <a className="photo-link" href={item.photoPath} target="_blank" rel="noreferrer">
+                Attached file
+              </a>
+            ) : (
+              <div className="photo-missing-hint">
+                {item.isRequired ? 'Required before submission' : 'Optional attachment'}
+              </div>
+            )}
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -129,9 +358,10 @@ export function ChecklistItemRow({
             <div className="item-reference">{item.referenceDocument}</div>
           )}
           <div className="item-meta-small">
-            {item.result !== null && (
+            <span className="item-type-pill">{controlLabel(item)}</span>
+            {pillLabel && (
               <span className={`item-result-pill pill-${variant}`}>
-                {resultLabel(item.result)}
+                {pillLabel}
               </span>
             )}
             {item.completedAt && item.completedBy && (
@@ -142,102 +372,7 @@ export function ChecklistItemRow({
           </div>
         </div>
 
-        <div className="item-controls">
-          {item.itemType === ChecklistItemType.Text ? (
-            <div className={`seg-control ${changing ? 'disabled' : ''}`} role="group" aria-label="Result">
-              <button
-                type="button"
-                className={`seg-btn ${variant === 'pass' ? 'seg-pass' : ''}`}
-                onClick={() => pickResult(ChecklistItemResult.Pass)}
-                disabled={readOnly || changing}
-                aria-pressed={variant === 'pass'}
-              >
-                <span className="seg-icon">✓</span>
-                <span>Pass</span>
-              </button>
-              <button
-                type="button"
-                className={`seg-btn ${variant === 'fail' ? 'seg-fail' : ''}`}
-                onClick={() => pickResult(ChecklistItemResult.Fail)}
-                disabled={readOnly || changing}
-                aria-pressed={variant === 'fail'}
-              >
-                <span className="seg-icon">✕</span>
-                <span>Fail</span>
-              </button>
-              {item.allowNA && (
-                <button
-                  type="button"
-                  className={`seg-btn ${variant === 'na' ? 'seg-na' : ''}`}
-                  onClick={() => pickResult(ChecklistItemResult.NA)}
-                  disabled={readOnly || changing}
-                  aria-pressed={variant === 'na'}
-                >
-                  <span className="seg-icon">—</span>
-                  <span>N/A</span>
-                </button>
-              )}
-              {variant === 'none' && !readOnly && (
-                <button
-                  type="button"
-                  className="seg-btn seg-clear"
-                  onClick={() => pickResult(null)}
-                  disabled
-                  aria-pressed={true}
-                  style={{ opacity: 0.6 }}
-                >
-                  <span className="seg-icon">○</span>
-                  <span>Unmarked</span>
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="numeric-control">
-              <div className="numeric-input-row">
-                <input
-                  type="number"
-                  className="numeric-input"
-                  inputMode="decimal"
-                  step="any"
-                  value={numericDraft}
-                  disabled={readOnly || changing}
-                  placeholder="Enter value"
-                  onChange={(e) => setNumericDraft(e.target.value)}
-                  onBlur={applyNumeric}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      (e.target as HTMLInputElement).blur();
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-small"
-                  onClick={applyNumeric}
-                  disabled={readOnly || changing}
-                >
-                  Apply
-                </button>
-              </div>
-              {hint && <div className="numeric-hint">{hint}</div>}
-              {item.numericValue != null && (
-                <div className="numeric-current">
-                  Last saved: <strong>{item.numericValue}</strong>
-                  {item.result === ChecklistItemResult.Pass && (
-                    <span className="ok-tag">Pass</span>
-                  )}
-                  {item.result === ChecklistItemResult.Fail && (
-                    <span className="bad-tag">Fail — outside thresholds</span>
-                  )}
-                  {item.result === ChecklistItemResult.NA && (
-                    <span className="na-tag">N/A</span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <div className="item-controls">{renderControls()}</div>
 
         <div className="item-notes">
           <label className="field-label">

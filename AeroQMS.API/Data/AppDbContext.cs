@@ -284,8 +284,11 @@ namespace AeroQMS.API.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.IsAdHoc).HasDefaultValue(false);
                 entity.HasIndex(e => e.IsActive);
+                entity.HasIndex(e => e.IsAdHoc);
                 entity.HasIndex(e => e.Category);
+                entity.HasIndex(e => e.CreatedByUserId);
             });
 
             // Checklist Template Item
@@ -310,7 +313,7 @@ namespace AeroQMS.API.Data
                 entity.HasIndex(e => e.DueDate);
                 entity.HasIndex(e => e.CreatedAt).IsDescending();
                 entity.HasOne(e => e.ChecklistTemplate)
-                      .WithMany()
+                      .WithMany(t => t.Instances)
                       .HasForeignKey(e => e.ChecklistTemplateId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
@@ -320,6 +323,7 @@ namespace AeroQMS.API.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Text).IsRequired();
+                entity.Property(e => e.TextValue);
                 entity.HasIndex(e => e.ChecklistInstanceId);
                 entity.HasIndex(e => e.Result);
                 entity.HasOne(e => e.ChecklistInstance)

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { ChecklistPage } from './components/ChecklistPage';
+import { ChecklistListPage } from './components/ChecklistListPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,8 +25,10 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter basename="/checklist">
         <Routes>
+          <Route path="/list" element={<ChecklistListPage />} />
           <Route path="/:instanceId" element={<ChecklistPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/" element={<Navigate to="/list" replace />} />
+          <Route path="*" element={<Navigate to="/list" replace />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

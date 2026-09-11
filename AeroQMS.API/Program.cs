@@ -167,6 +167,100 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+        // Add missing ChecklistTemplates columns introduced after initial table creation
+        var existingChecklistTemplateColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var connection = context.Database.GetDbConnection();
+            await connection.OpenAsync();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA table_info(ChecklistTemplates)";
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var colName = reader.GetString(1);
+                        existingChecklistTemplateColumns.Add(colName);
+                    }
+                }
+            }
+            await connection.CloseAsync();
+            Console.WriteLine($"Found existing ChecklistTemplates columns: {string.Join(", ", existingChecklistTemplateColumns)}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not check ChecklistTemplates columns: {ex.Message}");
+        }
+
+        var checklistTemplateColumns = new (string Name, string Sql)[]
+        {
+            ("IsAdHoc", "ALTER TABLE ChecklistTemplates ADD COLUMN IsAdHoc BOOLEAN NOT NULL DEFAULT 0;"),
+            ("CreatedByUserId", "ALTER TABLE ChecklistTemplates ADD COLUMN CreatedByUserId INTEGER NULL;"),
+            ("CreatedAt", "ALTER TABLE ChecklistTemplates ADD COLUMN CreatedAt TEXT NULL;")
+        };
+
+        foreach (var (column, sql) in checklistTemplateColumns)
+        {
+            if (!existingChecklistTemplateColumns.Contains(column))
+            {
+                try
+                {
+                    await context.Database.ExecuteSqlRawAsync(sql);
+                    Console.WriteLine($"✅ ChecklistTemplates column {column} added successfully.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"⚠️  Could not add ChecklistTemplates column {column}: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"ℹ️  ChecklistTemplates column {column} already exists, skipping.");
+            }
+        }
+
+        var existingChecklistInstanceItemColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var connection = context.Database.GetDbConnection();
+            await connection.OpenAsync();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA table_info(ChecklistInstanceItems)";
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        existingChecklistInstanceItemColumns.Add(reader.GetString(1));
+                    }
+                }
+            }
+            await connection.CloseAsync();
+            Console.WriteLine($"Found existing ChecklistInstanceItems columns: {string.Join(", ", existingChecklistInstanceItemColumns)}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not check ChecklistInstanceItems columns: {ex.Message}");
+        }
+
+        if (!existingChecklistInstanceItemColumns.Contains("TextValue"))
+        {
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE ChecklistInstanceItems ADD COLUMN TextValue TEXT NULL;");
+                Console.WriteLine("✅ ChecklistInstanceItems column TextValue added successfully.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️  Could not add ChecklistInstanceItems column TextValue: {ex.Message}");
+            }
+        }
+        else
+        {
+            Console.WriteLine("ℹ️  ChecklistInstanceItems column TextValue already exists, skipping.");
+        }
+
         try
         {
             await context.Database.ExecuteSqlRawAsync(@"

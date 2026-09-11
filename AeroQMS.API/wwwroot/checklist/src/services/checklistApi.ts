@@ -1,10 +1,14 @@
 import type {
   ChecklistInstanceDetail,
   ChecklistInstanceSummary,
+  ChecklistTemplateSummary,
+  CreateChecklistPayload,
+  CreatedChecklistInstance,
+  UpdateChecklistMetadataPayload,
   UpdateChecklistItemPayload,
 } from '../types';
 
-const API_BASE = '/api/Checklist';
+const API_BASE = '/api/checklists';
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -23,7 +27,8 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
     let msg = `Request failed (${res.status})`;
     try {
       const errData = await res.json().catch(() => null);
-      if (errData?.title) msg = errData.title;
+      if (typeof errData?.message === 'string') msg = errData.message;
+      else if (errData?.title) msg = errData.title;
       else if (typeof errData === 'string') msg = errData;
       else if (errData?.errors) {
         const first = Object.values(errData.errors)[0];
@@ -50,7 +55,7 @@ export async function getChecklistInstance(id: number): Promise<ChecklistInstanc
   return fetchJson<ChecklistInstanceDetail>(`${API_BASE}/${encodeURIComponent(id)}`);
 }
 
-export async function patchChecklistItem(
+export async function updateChecklistItem(
   instanceId: number,
   itemId: number,
   payload: UpdateChecklistItemPayload,
@@ -58,8 +63,25 @@ export async function patchChecklistItem(
   return fetchJson<unknown>(
     `${API_BASE}/${encodeURIComponent(instanceId)}/items/${encodeURIComponent(itemId)}`,
     {
-      method: 'PATCH',
+      method: 'PUT',
       body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function uploadChecklistPhoto(
+  instanceId: number,
+  itemId: number,
+  file: File,
+): Promise<{ path: string }> {
+  const form = new FormData();
+  form.append('file', file);
+
+  return fetchJson<{ path: string }>(
+    `${API_BASE}/${encodeURIComponent(instanceId)}/photo/${encodeURIComponent(itemId)}`,
+    {
+      method: 'POST',
+      body: form,
     },
   );
 }
@@ -68,5 +90,34 @@ export async function completeChecklist(instanceId: number): Promise<unknown> {
   return fetchJson<unknown>(`${API_BASE}/${encodeURIComponent(instanceId)}/complete`, {
     method: 'POST',
     body: '{}',
+  });
+}
+
+export async function updateChecklistMetadata(
+  instanceId: number,
+  payload: UpdateChecklistMetadataPayload,
+): Promise<unknown> {
+  return fetchJson<unknown>(`${API_BASE}/${encodeURIComponent(instanceId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteChecklist(instanceId: number): Promise<unknown> {
+  return fetchJson<unknown>(`${API_BASE}/${encodeURIComponent(instanceId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getChecklistTemplates(): Promise<ChecklistTemplateSummary[]> {
+  return fetchJson<ChecklistTemplateSummary[]>('/api/checklist-templates');
+}
+
+export async function createChecklistInstance(
+  payload: CreateChecklistPayload,
+): Promise<CreatedChecklistInstance> {
+  return fetchJson<CreatedChecklistInstance>(API_BASE, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }

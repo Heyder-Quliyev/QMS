@@ -8,6 +8,7 @@ namespace AeroQMS.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Route("api/checklists")]
     public class ChecklistController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -34,9 +35,14 @@ namespace AeroQMS.API.Controllers
                     i.AssignedTo,
                     i.DueDate,
                     i.CreatedAt,
+                    i.CompletedAt,
                     TemplateTitle = i.ChecklistTemplate.Title,
-                    Progress = _context.ChecklistInstanceItems
-                        .Count(x => x.ChecklistInstanceId == i.Id && x.Result != null)
+                    Progress = _context.ChecklistInstanceItems.Count(x =>
+                        x.ChecklistInstanceId == i.Id &&
+                        (x.Result != null ||
+                         x.NumericValue != null ||
+                         (x.TextValue != null && x.TextValue != string.Empty) ||
+                         (x.PhotoPath != null && x.PhotoPath != string.Empty)))
                 })
                 .ToListAsync();
 
@@ -48,7 +54,7 @@ namespace AeroQMS.API.Controllers
         public async Task<ActionResult<object>> GetChecklistInstance(int id)
         {
             var instance = await _context.ChecklistInstances
-                .Include(i => i.Items.OrderBy(item => item.OrderIndex))
+                .Include(i => i.Items)
                 .Include(i => i.ChecklistTemplate)
                 .FirstOrDefaultAsync(i => i.Id == id);
 
@@ -57,33 +63,19 @@ namespace AeroQMS.API.Controllers
                 return NotFound();
             }
 
-            var items = instance.Items.Select(item => new
-            {
-                item.Id,
-                item.ChecklistTemplateItemId,
-                item.Text,
-                item.OrderIndex,
-                item.Result,
-                item.NumericValue,
-                item.Notes,
-                item.PhotoPath,
-                item.CompletedBy,
-                item.CompletedAt,
-                ItemType = _context.ChecklistTemplateItems
-                    .FirstOrDefault(t => t.Id == item.ChecklistTemplateItemId)?.ItemType ?? ChecklistItemType.Text,
-                MinThreshold = _context.ChecklistTemplateItems
-                    .FirstOrDefault(t => t.Id == item.ChecklistTemplateItemId)?.MinThreshold,
-                MaxThreshold = _context.ChecklistTemplateItems
-                    .FirstOrDefault(t => t.Id == item.ChecklistTemplateItemId)?.MaxThreshold,
-                ReferenceDocument = _context.ChecklistTemplateItems
-                    .FirstOrDefault(t => t.Id == item.ChecklistTemplateItemId)?.ReferenceDocument,
-                RequiresNoteOnFail = _context.ChecklistTemplateItems
-                    .FirstOrDefault(t => t.Id == item.ChecklistTemplateItemId)?.RequiresNoteOnFail ?? false,
-                RequiresPhotoOnFail = _context.ChecklistTemplateItems
-                    .FirstOrDefault(t => t.Id == item.ChecklistTemplateItemId)?.RequiresPhotoOnFail ?? false,
-                AllowNA = _context.ChecklistTemplateItems
-                    .FirstOrDefault(t => t.Id == item.ChecklistTemplateItemId)?.AllowNA ?? true
-            });
+            var templateItemIds = instance.Items
+                .Select(item => item.ChecklistTemplateItemId)
+                .Distinct()
+                .ToList();
+
+            var templateItems = await _context.ChecklistTemplateItems
+                .Where(t => templateItemIds.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id);
+
+            var items = instance.Items
+                .OrderBy(item => item.OrderIndex)
+                .Select(item => ProjectItem(item, templateItems.GetValueOrDefault(item.ChecklistTemplateItemId)))
+                .ToList();
 
             return Ok(new
             {
@@ -117,12 +109,12 @@ namespace AeroQMS.API.Controllers
             {
                 ChecklistTemplateId = dto.TemplateId,
                 Title = template.Title,
-                AssignedTo = dto.AssignedTo,
-                CreatedBy = "System", // TODO: Replace with actual user when auth
+                AssignedTo = NormalizeOptionalText(dto.AssignedTo),
+                CreatedBy = "System",
                 DueDate = dto.DueDate
             };
 
-            foreach (var templateItem in template.Items)
+            foreach (var templateItem in template.Items.OrderBy(i => i.OrderIndex))
             {
                 instance.Items.Add(new ChecklistInstanceItem
                 {
@@ -133,7 +125,6 @@ namespace AeroQMS.API.Controllers
             }
 
             _context.ChecklistInstances.Add(instance);
-
             await _context.SaveChangesAsync();
 
             await LogAudit(instance, "Created", null, null, instance.CreatedBy, GetIpAddress());
@@ -157,115 +148,254 @@ namespace AeroQMS.API.Controllers
             return CreatedAtAction(nameof(GetChecklistInstance), new { id = instance.Id }, createdInstance);
         }
 
-        // PATCH: api/Checklists/5/items/10
-        [HttpPatch("{id}/items/{itemId}")]
-        public async Task<IActionResult> PatchChecklistItem(int id, int itemId, [FromBody] UpdateChecklistItemDto dto)
+        // PUT: api/Checklists/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateChecklistInstance(int id, [FromBody] UpdateChecklistInstanceDto dto)
         {
-            var instance = await _context.ChecklistInstances.Include(i => i.Items).FirstOrDefaultAsync(i => i.Id == id);
-            if (instance == null) return NotFound("Checklist instance not found.");
-
-            var item = instance.Items.FirstOrDefault(i => i.Id == itemId);
-            if (item == null) return NotFound("Checklist item not found.");
-
-            var templateItem = await _context.ChecklistTemplateItems.FirstOrDefaultAsync(t => t.Id == item.ChecklistTemplateItemId);
-            if (dto.Result == ChecklistItemResult.Fail)
+            var instance = await _context.ChecklistInstances.FirstOrDefaultAsync(i => i.Id == id);
+            if (instance == null)
             {
-                if (templateItem?.RequiresNoteOnFail == true && string.IsNullOrWhiteSpace(dto.Notes))
-                {
-                    return BadRequest("Notes required for this item when result is Fail.");
-                }
+                return NotFound("Checklist instance not found.");
             }
 
-            var oldResult = item.Result.ToString();
-            var oldNotes = item.Notes;
-            var oldPhotoPath = item.PhotoPath;
-
-            // Auto-evaluate result for numeric items if user didn't explicitly select NA
-            if (templateItem?.ItemType == ChecklistItemType.Numeric && dto.NumericValue.HasValue && dto.Result != ChecklistItemResult.NA)
+            if (!CanEditMetadata(instance.Status, out var blockedMessage))
             {
-                bool isPass = true;
-                if (templateItem.MinThreshold.HasValue && dto.NumericValue.Value < templateItem.MinThreshold.Value)
-                {
-                    isPass = false;
-                }
-                if (templateItem.MaxThreshold.HasValue && dto.NumericValue.Value > templateItem.MaxThreshold.Value)
-                {
-                    isPass = false;
-                }
-                item.Result = isPass ? ChecklistItemResult.Pass : ChecklistItemResult.Fail;
+                return Conflict(new { message = blockedMessage });
+            }
+
+            var title = NormalizeOptionalText(dto.Title);
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                return BadRequest(new { message = "Checklist title is required." });
+            }
+
+            var oldValue = $"Title={instance.Title}; AssignedTo={instance.AssignedTo}; DueDate={instance.DueDate:o}";
+
+            instance.Title = title;
+            instance.AssignedTo = NormalizeOptionalText(dto.AssignedTo);
+            instance.DueDate = dto.DueDate;
+
+            await _context.SaveChangesAsync();
+            await LogAudit(
+                instance,
+                "UpdatedMetadata",
+                oldValue,
+                $"Title={instance.Title}; AssignedTo={instance.AssignedTo}; DueDate={instance.DueDate:o}",
+                "System",
+                GetIpAddress());
+
+            return Ok(new
+            {
+                instance.Id,
+                instance.Title,
+                instance.Status,
+                instance.AssignedTo,
+                instance.DueDate,
+                instance.CreatedBy,
+                instance.CreatedAt,
+                instance.CompletedBy,
+                instance.CompletedAt
+            });
+        }
+
+        // PUT/PATCH: api/Checklists/5/items/10
+        [HttpPut("{id}/items/{itemId}")]
+        [HttpPatch("{id}/items/{itemId}")]
+        public async Task<IActionResult> UpdateChecklistItem(int id, int itemId, [FromBody] UpdateChecklistItemDto dto)
+        {
+            var instance = await _context.ChecklistInstances
+                .Include(i => i.Items)
+                .FirstOrDefaultAsync(i => i.Id == id);
+
+            if (instance == null)
+            {
+                return NotFound("Checklist instance not found.");
+            }
+
+            if (!CanUpdateItems(instance.Status, out var statusMessage))
+            {
+                return Conflict(new { message = statusMessage });
+            }
+
+            var item = instance.Items.FirstOrDefault(i => i.Id == itemId);
+            if (item == null)
+            {
+                return NotFound("Checklist item not found.");
+            }
+
+            var templateItem = await _context.ChecklistTemplateItems
+                .FirstOrDefaultAsync(t => t.Id == item.ChecklistTemplateItemId);
+
+            if (templateItem == null)
+            {
+                return NotFound("Checklist template item not found.");
+            }
+
+            var candidateTextValue = NormalizeOptionalText(dto.TextValue);
+            var candidateNotes = NormalizeOptionalText(dto.Notes);
+            var candidatePhotoPath = NormalizeOptionalText(dto.PhotoPath);
+            var candidateResult = ResolveChecklistResult(
+                templateItem,
+                dto.Result,
+                dto.NumericValue,
+                candidateTextValue,
+                candidatePhotoPath);
+
+            var validationMessage = ValidateChecklistItemState(
+                templateItem,
+                candidateResult,
+                dto.NumericValue,
+                candidateTextValue,
+                candidateNotes,
+                candidatePhotoPath,
+                dto.ValidateRequired);
+
+            if (validationMessage != null)
+            {
+                return BadRequest(new { message = validationMessage });
+            }
+
+            var oldResult = item.Result?.ToString();
+            var oldValue =
+                $"Result={item.Result}; NumericValue={item.NumericValue}; TextValue={item.TextValue}; Notes={item.Notes}; PhotoPath={item.PhotoPath}";
+
+            item.Result = candidateResult;
+            item.NumericValue = dto.NumericValue;
+            item.TextValue = candidateTextValue;
+            item.Notes = candidateNotes;
+            item.PhotoPath = candidatePhotoPath;
+
+            if (IsItemAnswered(templateItem, item))
+            {
+                item.CompletedAt = DateTime.UtcNow;
+                item.CompletedBy = "System";
             }
             else
             {
-                item.Result = dto.Result;
+                item.CompletedAt = null;
+                item.CompletedBy = null;
             }
 
-            item.NumericValue = dto.NumericValue;
-            item.Notes = dto.Notes;
-            item.PhotoPath = dto.PhotoPath;
-            item.CompletedAt = DateTime.UtcNow;
-            item.CompletedBy = "System";
-
-            // Update instance status
-            if (instance.Status == ChecklistInstanceStatus.Draft)
+            if (instance.Status == ChecklistInstanceStatus.Draft && IsItemAnswered(templateItem, item))
+            {
                 instance.Status = ChecklistInstanceStatus.InProgress;
+            }
 
             await _context.SaveChangesAsync();
 
-            await LogAudit(instance, "UpdatedItem", oldResult, dto.Result.ToString(), "System", GetIpAddress());
+            await LogAudit(
+                instance,
+                "UpdatedItem",
+                oldValue,
+                $"Result={item.Result}; NumericValue={item.NumericValue}; TextValue={item.TextValue}; Notes={item.Notes}; PhotoPath={item.PhotoPath}",
+                "System",
+                GetIpAddress());
 
-            if (dto.Result == ChecklistItemResult.Fail)
+            if (candidateResult == ChecklistItemResult.Fail && oldResult != ChecklistItemResult.Fail.ToString())
             {
-                await CreateNCRFromChecklist(instance, item, dto.Notes);
+                await CreateNCRFromChecklist(instance, item, candidateNotes);
             }
 
-            var updatedItem = new
-            {
-                item.Id,
-                item.ChecklistTemplateItemId,
-                item.Text,
-                item.OrderIndex,
-                item.Result,
-                item.NumericValue,
-                item.Notes,
-                item.PhotoPath,
-                item.CompletedBy,
-                item.CompletedAt,
-                ItemType = templateItem?.ItemType ?? ChecklistItemType.Text,
-                MinThreshold = templateItem?.MinThreshold,
-                MaxThreshold = templateItem?.MaxThreshold,
-                ReferenceDocument = templateItem?.ReferenceDocument,
-                RequiresNoteOnFail = templateItem?.RequiresNoteOnFail ?? false,
-                RequiresPhotoOnFail = templateItem?.RequiresPhotoOnFail ?? false,
-                AllowNA = templateItem?.AllowNA ?? true
-            };
+            return Ok(ProjectItem(item, templateItem));
+        }
 
-            return Ok(updatedItem);
+        // DELETE: api/Checklists/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteChecklistInstance(int id)
+        {
+            var instance = await _context.ChecklistInstances
+                .Include(i => i.Items)
+                .FirstOrDefaultAsync(i => i.Id == id);
+
+            if (instance == null)
+            {
+                return NotFound("Checklist instance not found.");
+            }
+
+            if (!CanDelete(instance.Status, out var blockedMessage))
+            {
+                return Conflict(new { message = blockedMessage });
+            }
+
+            _context.ChecklistInstances.Remove(instance);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Checklist deleted successfully." });
         }
 
         // POST: api/Checklists/5/complete
         [HttpPost("{id}/complete")]
         public async Task<IActionResult> CompleteChecklist(int id)
         {
-            var instance = await _context.ChecklistInstances.Include(i => i.Items).FirstOrDefaultAsync(i => i.Id == id);
-            if (instance == null) return NotFound();
-            if (instance.Items.Any(i => i.Result == null))
+            var instance = await _context.ChecklistInstances
+                .Include(i => i.Items)
+                .FirstOrDefaultAsync(i => i.Id == id);
+
+            if (instance == null)
             {
-                return BadRequest("Cannot complete checklist with pending items.");
+                return NotFound();
             }
 
-            instance.Status = ChecklistInstanceStatus.Completed;
+            if (instance.Status == ChecklistInstanceStatus.PendingApproval)
+            {
+                return Conflict(new { message = "Checklist is already pending approval." });
+            }
+
+            if (instance.Status == ChecklistInstanceStatus.Approved)
+            {
+                return Conflict(new { message = "Approved checklists cannot be resubmitted." });
+            }
+
+            if (instance.Status == ChecklistInstanceStatus.Voided)
+            {
+                return Conflict(new { message = "Voided checklists cannot be submitted." });
+            }
+
+            var templateItemIds = instance.Items
+                .Select(item => item.ChecklistTemplateItemId)
+                .Distinct()
+                .ToList();
+
+            var templateItems = await _context.ChecklistTemplateItems
+                .Where(t => templateItemIds.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id);
+
+            foreach (var item in instance.Items.OrderBy(i => i.OrderIndex))
+            {
+                if (!templateItems.TryGetValue(item.ChecklistTemplateItemId, out var templateItem))
+                {
+                    return BadRequest(new { message = $"Template metadata missing for item '{item.Text}'." });
+                }
+
+                var validationMessage = ValidateChecklistItemState(
+                    templateItem,
+                    ResolveChecklistResult(templateItem, item.Result, item.NumericValue, item.TextValue, item.PhotoPath),
+                    item.NumericValue,
+                    item.TextValue,
+                    item.Notes,
+                    item.PhotoPath,
+                    true);
+
+                if (validationMessage != null)
+                {
+                    return BadRequest(new { message = $"{item.Text}: {validationMessage}" });
+                }
+            }
+
+            instance.Status = ChecklistInstanceStatus.PendingApproval;
             instance.CompletedAt = DateTime.UtcNow;
             instance.CompletedBy = "System";
 
             await _context.SaveChangesAsync();
-            await LogAudit(instance, "Completed", null, null, "System", GetIpAddress());
+            await LogAudit(instance, "SubmittedForApproval", null, null, "System", GetIpAddress());
+
             return Ok(new
             {
                 instance.Id,
                 instance.Status,
                 instance.CompletedAt,
                 instance.CompletedBy,
-                message = "Checklist completed successfully."
+                message = "Checklist submitted for approval."
             });
         }
 
@@ -289,6 +419,7 @@ namespace AeroQMS.API.Controllers
                     l.IPAddress
                 })
                 .ToListAsync();
+
             return Ok(logs);
         }
 
@@ -296,14 +427,33 @@ namespace AeroQMS.API.Controllers
         [HttpPost("{id}/photo/{itemId}")]
         public async Task<IActionResult> UploadPhoto(int id, int itemId, IFormFile file)
         {
-            if (file == null || file.Length == 0) return BadRequest("No file uploaded.");
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "No file uploaded." });
+            }
+
+            var instanceExists = await _context.ChecklistInstances.AnyAsync(i => i.Id == id);
+            if (!instanceExists)
+            {
+                return NotFound(new { message = "Checklist instance not found." });
+            }
+
+            var itemExists = await _context.ChecklistInstanceItems.AnyAsync(i => i.Id == itemId && i.ChecklistInstanceId == id);
+            if (!itemExists)
+            {
+                return NotFound(new { message = "Checklist item not found." });
+            }
 
             var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "checklists");
-            if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
+            if (!Directory.Exists(uploadPath))
+            {
+                Directory.CreateDirectory(uploadPath);
+            }
 
-            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
+            var uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
             var filePath = Path.Combine(uploadPath, uniqueFileName);
-            using (var stream = new FileStream(filePath, FileMode.Create))
+
+            await using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
@@ -317,7 +467,7 @@ namespace AeroQMS.API.Controllers
         public async Task<ActionResult<IEnumerable<object>>> GetTemplates()
         {
             var templates = await _context.ChecklistTemplates
-                .Where(t => t.IsActive)
+                .Where(t => t.IsActive && !t.IsAdHoc)
                 .Select(t => new
                 {
                     t.Id,
@@ -383,6 +533,7 @@ namespace AeroQMS.API.Controllers
                     RequiresPhotoOnFail = item.RequiresPhotoOnFail
                 });
             }
+
             _context.ChecklistTemplates.Add(template);
             await _context.SaveChangesAsync();
 
@@ -423,6 +574,210 @@ namespace AeroQMS.API.Controllers
             return CreatedAtAction(nameof(GetTemplates), new { id = template.Id }, createdTemplate);
         }
 
+        private object ProjectItem(ChecklistInstanceItem item, ChecklistTemplateItem? templateItem)
+        {
+            return new
+            {
+                item.Id,
+                item.ChecklistTemplateItemId,
+                item.Text,
+                item.OrderIndex,
+                item.Result,
+                item.NumericValue,
+                item.TextValue,
+                item.Notes,
+                item.PhotoPath,
+                item.CompletedBy,
+                item.CompletedAt,
+                ItemType = templateItem?.ItemType ?? ChecklistItemType.PassFail,
+                MinThreshold = templateItem?.MinThreshold,
+                MaxThreshold = templateItem?.MaxThreshold,
+                ReferenceDocument = templateItem?.ReferenceDocument,
+                IsRequired = templateItem?.IsRequired ?? true,
+                RequiresNoteOnFail = templateItem?.RequiresNoteOnFail ?? false,
+                RequiresPhotoOnFail = templateItem?.RequiresPhotoOnFail ?? false,
+                AllowNA = templateItem?.AllowNA ?? true
+            };
+        }
+
+        private static string? ValidateChecklistItemState(
+            ChecklistTemplateItem templateItem,
+            ChecklistItemResult? result,
+            decimal? numericValue,
+            string? textValue,
+            string? notes,
+            string? photoPath,
+            bool validateRequired)
+        {
+            if (result == ChecklistItemResult.NA && !templateItem.AllowNA)
+            {
+                return "N/A is not allowed for this item.";
+            }
+
+            if (validateRequired && templateItem.IsRequired)
+            {
+                switch (templateItem.ItemType)
+                {
+                    case ChecklistItemType.PassFail:
+                    case ChecklistItemType.YesNo:
+                        if (result == null)
+                        {
+                            return "A selection is required for this item.";
+                        }
+                        break;
+                    case ChecklistItemType.Text:
+                        if (string.IsNullOrWhiteSpace(textValue))
+                        {
+                            return "A text answer is required for this item.";
+                        }
+                        break;
+                    case ChecklistItemType.Number:
+                        if (!numericValue.HasValue && result != ChecklistItemResult.NA)
+                        {
+                            return "A numeric value is required for this item.";
+                        }
+                        break;
+                    case ChecklistItemType.PhotoRequired:
+                        if (string.IsNullOrWhiteSpace(photoPath))
+                        {
+                            return "A photo is required for this item.";
+                        }
+                        break;
+                }
+            }
+
+            if (result == ChecklistItemResult.Fail && templateItem.RequiresNoteOnFail && string.IsNullOrWhiteSpace(notes))
+            {
+                return "Notes are required when this item fails.";
+            }
+
+            if (result == ChecklistItemResult.Fail && templateItem.RequiresPhotoOnFail && string.IsNullOrWhiteSpace(photoPath))
+            {
+                return "A photo is required when this item fails.";
+            }
+
+            return null;
+        }
+
+        private static ChecklistItemResult? ResolveChecklistResult(
+            ChecklistTemplateItem templateItem,
+            ChecklistItemResult? requestedResult,
+            decimal? numericValue,
+            string? textValue,
+            string? photoPath)
+        {
+            if (requestedResult == ChecklistItemResult.NA && templateItem.AllowNA)
+            {
+                return ChecklistItemResult.NA;
+            }
+
+            return templateItem.ItemType switch
+            {
+                ChecklistItemType.PassFail => requestedResult,
+                ChecklistItemType.YesNo => requestedResult,
+                ChecklistItemType.Text => string.IsNullOrWhiteSpace(textValue) ? null : ChecklistItemResult.Pass,
+                ChecklistItemType.PhotoRequired => string.IsNullOrWhiteSpace(photoPath) ? null : ChecklistItemResult.Pass,
+                ChecklistItemType.Number => ResolveNumericResult(templateItem, numericValue),
+                _ => requestedResult
+            };
+        }
+
+        private static ChecklistItemResult? ResolveNumericResult(ChecklistTemplateItem templateItem, decimal? numericValue)
+        {
+            if (!numericValue.HasValue)
+            {
+                return null;
+            }
+
+            var isPass = true;
+            if (templateItem.MinThreshold.HasValue && numericValue.Value < templateItem.MinThreshold.Value)
+            {
+                isPass = false;
+            }
+            if (templateItem.MaxThreshold.HasValue && numericValue.Value > templateItem.MaxThreshold.Value)
+            {
+                isPass = false;
+            }
+
+            return isPass ? ChecklistItemResult.Pass : ChecklistItemResult.Fail;
+        }
+
+        private static bool IsItemAnswered(ChecklistTemplateItem templateItem, ChecklistInstanceItem item)
+        {
+            return templateItem.ItemType switch
+            {
+                ChecklistItemType.Text => !string.IsNullOrWhiteSpace(item.TextValue),
+                ChecklistItemType.Number => item.NumericValue.HasValue || item.Result == ChecklistItemResult.NA,
+                ChecklistItemType.PhotoRequired => !string.IsNullOrWhiteSpace(item.PhotoPath),
+                _ => item.Result != null
+            };
+        }
+
+        private static bool CanEditMetadata(ChecklistInstanceStatus status, out string? message)
+        {
+            if (status == ChecklistInstanceStatus.Approved)
+            {
+                message = "Approved checklists cannot be edited.";
+                return false;
+            }
+
+            if (status == ChecklistInstanceStatus.Voided)
+            {
+                message = "Voided checklists cannot be edited.";
+                return false;
+            }
+
+            message = null;
+            return true;
+        }
+
+        private static bool CanUpdateItems(ChecklistInstanceStatus status, out string? message)
+        {
+            if (status == ChecklistInstanceStatus.PendingApproval)
+            {
+                message = "Checklist is pending approval and can no longer be edited.";
+                return false;
+            }
+
+            if (status == ChecklistInstanceStatus.Approved)
+            {
+                message = "Approved checklists cannot be edited.";
+                return false;
+            }
+
+            if (status == ChecklistInstanceStatus.Voided)
+            {
+                message = "Voided checklists cannot be edited.";
+                return false;
+            }
+
+            message = null;
+            return true;
+        }
+
+        private static bool CanDelete(ChecklistInstanceStatus status, out string message)
+        {
+            if (status == ChecklistInstanceStatus.Draft || status == ChecklistInstanceStatus.PendingApproval)
+            {
+                message = string.Empty;
+                return true;
+            }
+
+            if (status == ChecklistInstanceStatus.Approved)
+            {
+                message = "Approved checklists cannot be deleted.";
+                return false;
+            }
+
+            message = "Only Draft or Pending Approval checklists can be deleted.";
+            return false;
+        }
+
+        private static string? NormalizeOptionalText(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
         private async Task LogAudit(ChecklistInstance instance, string action, string? oldValue, string? newValue, string changedBy, string? ipAddress)
         {
             var log = new ChecklistAuditLog
@@ -435,6 +790,7 @@ namespace AeroQMS.API.Controllers
                 ChangedAt = DateTime.UtcNow,
                 IPAddress = ipAddress
             };
+
             _context.ChecklistAuditLogs.Add(log);
             await _context.SaveChangesAsync();
         }
@@ -456,9 +812,9 @@ namespace AeroQMS.API.Controllers
                 Date = DateTime.UtcNow,
                 Status = "Open"
             };
+
             _context.NonConformances.Add(ncr);
             await _context.SaveChangesAsync();
-
             return ncr.Id;
         }
 
@@ -466,31 +822,44 @@ namespace AeroQMS.API.Controllers
         {
             return Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         }
-
     }
+
     public class CreateChecklistInstanceDto
     {
         public int TemplateId { get; set; }
         public string? AssignedTo { get; set; }
         public DateTime? DueDate { get; set; }
     }
+
+    public class UpdateChecklistInstanceDto
+    {
+        [Required]
+        public string Title { get; set; } = string.Empty;
+        public string? AssignedTo { get; set; }
+        public DateTime? DueDate { get; set; }
+    }
+
     public class UpdateChecklistItemDto
     {
-        public ChecklistItemResult Result { get; set; }
+        public ChecklistItemResult? Result { get; set; }
         public decimal? NumericValue { get; set; }
+        public string? TextValue { get; set; }
         public string? Notes { get; set; }
         public string? PhotoPath { get; set; }
+        public bool ValidateRequired { get; set; } = true;
     }
+
     public class CreateChecklistTemplateDto
     {
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string? Category { get; set; }
-        public List<CreateChecklistTemplateItemDto> Items { get; set; }
+        public List<CreateChecklistTemplateItemDto> Items { get; set; } = new();
     }
+
     public class CreateChecklistTemplateItemDto
     {
-        public string Text { get; set; }
+        public string Text { get; set; } = string.Empty;
         public string? ReferenceDocument { get; set; }
         public int OrderIndex { get; set; }
         public ChecklistItemType ItemType { get; set; }
